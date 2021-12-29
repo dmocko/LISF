@@ -177,8 +177,8 @@ module LIS_pluginIndices
 !-------------------------------------------------------------------------
 ! LAI/SAI sources
 !-------------------------------------------------------------------------
-   character*50, public,  parameter :: LIS_modis_RT_laiId  = "MODIS real-time"
-   character*50, public,  parameter :: LIS_ALMIPIIlaiId    = "ALMIPII"
+   character*50, public,  parameter :: LIS_modis_laiId       = "MCD15A2H LAI"
+   character*50, public,  parameter :: LIS_ALMIPIIlaiId      = "ALMIPII"
 !-------------------------------------------------------------------------
 ! greenness data sources
 !-------------------------------------------------------------------------

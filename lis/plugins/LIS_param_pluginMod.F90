@@ -95,13 +95,12 @@ subroutine LIS_laisai_plugin
 !EOP
 
 !  external setup_AVHRRlai, read_AVHRRlai,read_AVHRRsai
-!  external setup_MODISlai, read_MODISlai,read_MODISsai
 !  external setup_tiled_AVHRRlai, read_tiled_AVHRRlai, read_tiled_AVHRRsai
 !  external setup_MMFlai, read_MMFlai, read_MMFsai
 
-#if ( defined PARAM_MODIS_REAL_TIME )
-  ! real-time MODIS data
-  external setup_MODIS_RT_lai, read_MODIS_RT_lai,read_MODIS_RT_sai
+#if ( defined PARAM_MODIS_LAI )
+  use MODIS_LAI_Mod,       only : setup_MODIS_lai
+  external read_MODIS_lai
 #endif
 
 #if ( defined PARAM_ALMIPII_LAI )
@@ -113,10 +112,6 @@ subroutine LIS_laisai_plugin
 !  call registerreadlai(LIS_avhrrlaiId,read_AVHRRlai)
 !  call registerreadsai(LIS_avhrrlaiId,read_AVHRRsai)
 !
-!  call registerlaisetup(LIS_modislaiId, setup_MODISlai)
-!  call registerreadlai(LIS_modislaiId,read_MODISlai)
-!
-!  call registerreadsai(LIS_modislaiId,read_MODISsai)
 !  call registerlaisetup(LIS_tiledavhrrlaiId, setup_tiled_AVHRRlai)
 !  call registerreadlai(LIS_tiledavhrrlaiId,read_tiled_AVHRRlai)
 !  call registerreadsai(LIS_tiledavhrrlaiId,read_tiled_AVHRRsai)
@@ -130,10 +125,9 @@ subroutine LIS_laisai_plugin
    call registerreadlai(trim(LIS_ALMIPIIlaiId)//char(0),read_ALMIPIIlai)
 #endif
 
-#if ( defined PARAM_MODIS_REAL_TIME )
-   call registerlaisetup(trim(LIS_modis_RT_laiId)//char(0),setup_MODIS_RT_lai)
-   call registerreadlai(trim(LIS_modis_RT_laiId)//char(0),read_MODIS_RT_lai)
-   call registerreadsai(trim(LIS_modis_RT_laiId)//char(0),read_MODIS_RT_sai)
+#if ( defined PARAM_MODIS_LAI )
+   call registerlaisetup(trim(LIS_modis_laiId)//char(0),setup_MODIS_lai)
+   call registerreadlai(trim(LIS_modis_laiId)//char(0),read_MODIS_lai)
 #endif
 
 end subroutine LIS_laisai_plugin
