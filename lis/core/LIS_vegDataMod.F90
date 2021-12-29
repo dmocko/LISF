@@ -1511,338 +1511,6 @@ contains
 #endif
   end subroutine read_roughnessclimo
 
-#if 0
-!BOP
-!
-! !ROUTINE: LIS_lai_setup
-! \label{LIS_lai_setup_old}
-!
-! !INTERFACE:
-  subroutine LIS_lai_setup
-! !USES:
-    use LIS_coreMod,    only : LIS_rc, LIS_Config, LIS_domain
-    use LIS_timeMgrMod, only : LIS_computeTemporalWeights, &
-         LIS_registerAlarm, LIS_calendar
-    use LIS_logMod,     only : LIS_verify, LIS_logunit
-
-! !DESCRIPTION:
-!
-! Allocates memory and other structures for reading
-! LAI datasets
-!
-!  The routines invoked are:
-!  \begin{description}
-!   \item[LIS\_registerAlarm](\ref{LIS_registerAlarm}) \newline
-!    registers the alarm for reading LAI datasets
-!   \item[LIS\_computeTemporalWeights](\ref{LIS_computeTemporalWeights})
-!     \newline
-!    computes the interpolation weights
-!   \item[read\_laiclimo](\ref{read_laiclimo}) \newline
-!    reads the climatological lai data
-!   \item[laisetup](\ref{laisetup}) \newline
-!    initializes the realtime lai reader
-!   \item[readlai](\ref{readlai}) \newline
-!    reads the realtime lai data
-!  \end{description}
-!EOP
-    implicit none
-    integer :: n, i
-    integer :: rc
-    integer :: ndoms
-    real, allocatable :: value1(:) ! temporary value holder for mo1
-    real, allocatable :: value2(:) ! temporary value holder for mo2
-    real          :: wt1,wt2
-    integer       :: t1,t2, t_delta, t_delta_interval
-    type(ESMF_Time)   :: time
-    type(ESMF_TimeInterval) :: deltaT, deltaTinterval
-    logical:: forward_search
-    integer :: status
-
-    TRACE_ENTER("lai_setup")
-    ndoms = 0
-    do n=1,LIS_rc%nnest
-       if(LIS_rc%uselaimap(n).ne."none") then
-          ndoms = ndoms+1
-       endif
-    enddo
-
-    if(ndoms.gt.0) then !at least one nest requires lai to be supplied
-       allocate(LIS_lai(LIS_rc%nnest))
-
-       do n=1,LIS_rc%nnest
-          LIS_lai(n)%firstInstance = .true.
-       enddo
-       !initialize variables/alarms
-       do n=1,LIS_rc%nnest
-          allocate(LIS_lai(n)%lai1(LIS_rc%ntiles(n)))
-          allocate(LIS_lai(n)%lai2(LIS_rc%ntiles(n)))
-          allocate(LIS_lai(n)%tlai(LIS_rc%ntiles(n)))
-
-          LIS_lai(n)%lai1 = 0
-          LIS_lai(n)%lai2 = 0
-          LIS_lai(n)%tlai = 0
-
-          !set alarms
-          select case (LIS_rc%uselaimap(n))
-          case ("LDT")
-#if (defined USE_NETCDF3 || defined USE_NETCDF4)
-
-             inquire(file=LIS_rc%paramfile(n), exist=file_exists)
-             if(file_exists) then
-
-                ios = nf90_open(path=trim(LIS_rc%paramfile(n)),&
-                     mode=NF90_NOWRITE,ncid=nid)
-                call LIS_verify(ios,'Error in nf90_open in read_laiclimo')
-
-                ios = nf90_get_att(nid, NF90_GLOBAL, 'LAISAI_DATA_INTERVAL', &
-                     LIS_lai(n)%laiIntervalType)
-                call LIS_verify(ios,'Error in nf90_get_att in read_laiclimo')
-                ios = nf90_close(nid)
-                call LIS_verify(ios,'Error in nf90_close in read_laiclimo')
-             else
-                write(LIS_logunit,*) '[ERR] ',LIS_rc%paramfile(n), &
-                     ' does not exist'
-                write(LIS_logunit,*) '[ERR] program stopping ...'
-                call LIS_endrun
-             endif
-#endif
-             if(LIS_lai(n)%laiIntervalType.eq."monthly") then
-                LIS_lai(n)%laiInterval = 2592000  ! 30 days
-             endif
-
-             call LIS_registerAlarm("LIS LAI climo read alarm", LIS_rc%ts, &
-                  LIS_lai(n)%laiInterval, &
-                  intervalType = LIS_lai(n)%laiIntervalType)
-             call LIS_computeTemporalWeights(LIS_rc,&
-                  LIS_lai(n)%laiIntervalType, &
-                  t1,t2,wt1,wt2)
-             allocate(value1(LIS_rc%ntiles(n)))
-             allocate(value2(LIS_rc%ntiles(n)))
-             call read_laiclimo(n,t1,value1)
-             call read_laiclimo(n,t2,value2)
-             do i=1,LIS_rc%ntiles(n)
-                LIS_lai(n)%lai1(i) = value1(i)
-                LIS_lai(n)%lai2(i) = value2(i)
-             enddo
-             deallocate(value1)
-             deallocate(value2)
-
-          case default ! is some kind of real-time
-!             !presume for now that files no more frequent than daily
-!             call LIS_registerAlarm("LIS LAI real-time read alarm", &
-!                  LIS_rc%ts, &
-!                  86400)
-             call laisetup(trim(LIS_rc%uselaimap(n))//char(0),n)
-
-             ! EMK Fixed argument list.
-             !call readlai(trim(LIS_rc%uselaimap(n))//char(0), n,&
-             !     wt1, wt2, LIS_lai(n)%lai1, LIS_lai(n)%time1)
-             call readlai(trim(LIS_rc%uselaimap(n))//char(0), n,&
-                  wt1, wt2, LIS_lai(n)%lai1, LIS_lai(n)%lai2)
-
-          end select
-          do i=1,LIS_rc%ntiles(n)
-             LIS_lai(n)%tlai(i)=wt1*LIS_lai(n)%lai1(i)+wt2*LIS_lai(n)%lai2(i)
-          enddo
-       end do
-#if 0
-!read in initial values
-       do n=1,LIS_rc%nnest
-          select case (LIS_rc%uselaimap(n))
-          case ("LDT")
-             call LIS_computeTemporalWeights(LIS_rc,&
-                  LIS_lai(n)%laiIntervalType, &
-                  t1,t2,wt1,wt2)
-             allocate(value1(LIS_rc%ntiles(n)))
-             allocate(value2(LIS_rc%ntiles(n)))
-             call read_laiclimo(n,t1,value1)
-             call read_laiclimo(n,t2,value2)
-             do i=1,LIS_rc%ntiles(n)
-                LIS_lai(n)%lai1(i) = value1(i)
-                LIS_lai(n)%lai2(i) = value2(i)
-             enddo
-             deallocate(value1)
-             deallocate(value2)
-
-             do i=1,LIS_rc%ntiles(n)
-                LIS_lai(n)%tlai(i) = wt1* LIS_lai(n)%lai1(i)+ &
-                     wt2*LIS_lai(n)%lai2(i)
-             end do
-          case default ! is some kind of real-time
-             call laisetup(trim(LIS_rc%uselaimap(n))//char(0),n)
-
-             forward_search=.false.
-             call readlai(trim(LIS_rc%uselaimap(n))//char(0),n,&
-                  forward_search,LIS_lai(n)%lai1,LIS_lai(n)%time1)
-
-             forward_search=.true.
-             call readlai(trim(LIS_rc%uselaimap(n))//char(0),n,&
-                  forward_search,LIS_lai(n)%lai2,LIS_lai(n)%time2)
-
-             call ESMF_TimeSet(time, yy=LIS_rc%yr, &
-                  mm=LIS_rc%mo, &
-                  dd=LIS_rc%da, &
-                  h =LIS_rc%hr, &
-                  m =LIS_rc%mn, &
-                  s =LIS_rc%ss, &
-                  calendar = LIS_calendar, &
-                  rc = status)
-             deltaT=time-LIS_lai(n)%time1
-             deltaTinterval=LIS_lai(n)%time2-LIS_lai(n)%time1
-
-             call ESMF_TimeIntervalGet(deltaT, s=t_delta)
-             call ESMF_TimeIntervalGet(deltaTinterval, s=t_delta_interval)
-
-             !get current values from linear interpolation
-             wt1=real(t_delta_interval-t_delta)/real(t_delta_interval)
-             wt2=real(t_delta)/real(t_delta_interval)
-             do i=1,LIS_rc%ntiles(n)
-                LIS_lai(n)%tlai(i)= &
-                     wt1*LIS_lai(n)%lai1(i)+wt2*LIS_lai(n)%lai2(i)
-             enddo
-
-             if (time >= LIS_lai(n)%time2) then
-                LIS_lai(n)%lai1=LIS_lai(n)%lai2
-                LIS_lai(n)%time1=LIS_lai(n)%time2
-
-                forward_search=.true.
-                call readlai(trim(LIS_rc%uselaimap(n))//char(0),n,&
-                     forward_search,LIS_lai(n)%lai2,LIS_lai(n)%time2)
-             end if
-          end select
-       enddo
-    endif
-#endif
-    TRACE_EXIT("lai_setup")
-  end subroutine LIS_lai_setup
-
-!BOP
-!
-! !ROUTINE: LIS_read_lai
-! \label{LIS_read_lai_old}
-!
-! !INTERFACE:
-  subroutine LIS_read_lai(n)
-! !USES:
-    use LIS_coreMod,    only : LIS_rc, LIS_domain
-    use LIS_timeMgrMod, only : LIS_isAlarmRinging,LIS_computeTemporalWeights, &
-         LIS_calendar
-    use LIS_logMod,     only : LIS_verify, LIS_logunit
-
-    implicit none
-! !ARGUMENTS:
-    integer, intent(in) :: n
-!
-! !DESCRIPTION:
-!
-!  Reads the LAI climatology and temporally interpolates it to the
-!  current day.
-!
-!  The arguments are:
-!  \begin{description}
-!   \item [n]
-!     index of the domain or nest.
-!  \end{description}
-!
-!  The routines invoked are:
-!  \begin{description}
-!   \item[readlai](\ref{readlai}) \newline
-!    invokes the generic method in the registry to read the
-!    LAI climatology data
-!  \end{description}
-!
-!EOP
-    real, allocatable :: value1(:) ! temporary value holder for mo1
-    real, allocatable :: value2(:) ! temporary value holder for mo2
-    real, allocatable :: value(:)  !
-    real              :: wt1,wt2
-    integer           :: t1, t2, t_delta, t_delta_interval
-    type(ESMF_Time)   :: time1, time2, time
-    type(ESMF_TimeInterval) :: deltaT, deltaTinterval
-    integer           :: i
-    logical           :: laiAlarmCheckclimo,laiAlarmCheckrealtime
-    logical           :: forward_search
-    logical           :: file_exists
-    integer  :: status
-
-    TRACE_ENTER("lai_read")
-    select case (LIS_rc%uselaimap(n))
-    case("none")
-       !nothing
-    case ("LDT")
-       laiAlarmCheckclimo = LIS_isAlarmRinging(LIS_rc,&
-            "LIS LAI climo read alarm",&
-            LIS_lai(n)%laiIntervalType)
-
-       call LIS_computeTemporalWeights(LIS_rc,&
-            LIS_lai(n)%laiIntervalType, t1,t2,wt1,wt2)
-
-       if(laiAlarmCheckclimo) then
-          allocate(value1(LIS_rc%ntiles(n)))
-          allocate(value2(LIS_rc%ntiles(n)))
-
-          call read_LAIclimo(n,t1,value1)
-          call read_LAIclimo(n,t2,value2)
-
-          do i=1,LIS_rc%ntiles(n)
-             LIS_lai(n)%lai1(i) = value1(i)
-             LIS_lai(n)%lai2(i) = value2(i)
-          enddo
-          deallocate(value1)
-          deallocate(value2)
-
-       endif
-       do i=1,LIS_rc%ntiles(n)
-          LIS_lai(n)%tlai(i) = wt1* LIS_lai(n)%lai1(i)+ &
-               wt2*LIS_lai(n)%lai2(i)
-       end do
-    case default ! is some kind of real-time
-       call readlai(trim(LIS_rc%uselaimap(n))//char(0), n, &
-            wt1, wt2, LIS_lai(n)%lai1, LIS_lai(n)%lai2)
-       do i=1,LIS_rc%ntiles(n)
-          LIS_lai(n)%tlai(i) = wt1* LIS_lai(n)%lai1(i)+ &
-               wt2*LIS_lai(n)%lai2(i)
-       enddo
-    end select
-
-#if 0
-          call ESMF_TimeSet(time, yy=LIS_rc%yr, &
-               mm=LIS_rc%mo, &
-               dd=LIS_rc%da, &
-               h =LIS_rc%hr, &
-               m =LIS_rc%mn, &
-               s =LIS_rc%ss, &
-               calendar = LIS_calendar, &
-               rc = status)
-          deltaT=time-LIS_lai(n)%time1
-          deltaTinterval=LIS_lai(n)%time2-LIS_lai(n)%time1
-
-          call ESMF_TimeIntervalGet(deltaT, s=t_delta)
-          call ESMF_TimeIntervalGet(deltaTinterval, s=t_delta_interval)
-
-          !get current values from linear interpolation
-          wt1=real(t_delta_interval-t_delta)/real(t_delta_interval)
-          wt2=real(t_delta)/real(t_delta_interval)
-          do i=1,LIS_rc%ntiles(n)
-             LIS_lai(n)%tlai(i)=wt1*LIS_lai(n)%lai1(i)+wt2*LIS_lai(n)%lai2(i)
-          enddo
-
-          if (time >= LIS_lai(n)%time2) then
-             LIS_lai(n)%lai1=LIS_lai(n)%lai2
-             LIS_lai(n)%time1=LIS_lai(n)%time2
-
-             forward_search=.true.
-             call readlai(trim(LIS_rc%uselaimap(n))//char(0),n,&
-                  forward_search,LIS_lai(n)%lai2,LIS_lai(n)%time2)
-          end if
-#endif
-!       endif
-    TRACE_EXIT("lai_read")
-
-  end subroutine LIS_read_lai
-
-#endif
-
 !BOP
 !
 ! !ROUTINE: LIS_lai_setup
@@ -1907,6 +1575,11 @@ contains
           LIS_lai(n)%lai2 = 0
           LIS_lai(n)%tlai = 0
 
+          if (LIS_rc%uselaimap(n).eq."MCD15A2H LAI") then
+             LIS_lai(n)%laiInterval = 691200
+             LIS_lai(n)%laiIntervalType = "8-day"
+          endif
+
           if(LIS_rc%uselaimap(n).ne."none".and.&
                LIS_rc%uselaimap(n).ne."LDT") then
              call laisetup(trim(LIS_rc%uselaimap(n))//char(0),n)
@@ -1920,7 +1593,7 @@ contains
                intervalType = LIS_lai(n)%laiIntervalType)
 
           call LIS_computeTemporalWeights(LIS_rc,&
-               LIS_lai(n)%laiIntervalType, t1,t2,wt1,wt2)
+               LIS_lai(n)%laiIntervalType,t1,t2,wt1,wt2)
 
           if(LIS_rc%uselaimap(n).eq."LDT") then
              allocate(value1(LIS_rc%ntiles(n)))
@@ -1942,24 +1615,20 @@ contains
           endif
 
           do i=1,LIS_rc%ntiles(n)
-             LIS_lai(n)%tlai(i) = wt1* LIS_lai(n)%lai1(i)+ &
-                  wt2*LIS_lai(n)%lai2(i)
-#if 0
-!SVK : Should be cleaned up -- hardcoding checks for LSM is not clean
-!  YDT: 10/18/2011 added a check for minimal lai values
-!    Otherwise noah will crash in CANRES()
-!             if ( LIS_rc%gfracsrc(n) .gt. 0 .and. LIS_gfrac(n)%greenness(i) .gt. 0) &
-!                LIS_lai(n)%tlai(i) = max(LIS_lai(n)%tlai(i), 0.1)
-!  YDT: 10/20/2011 more "elegant" solution: compute greenness from lai if lai is MODIS-RT (src=3).
-             if ( LIS_rc%uselaimap(n) .eq. "MODIS" ) then !??
-                LIS_gfrac(n)%greenness(i) = 1.0 - exp(-0.52 * LIS_lai(n)%tlai(i) )
-                ! for Urban LC, Noah will assign gfrac=0.05. So need to set a min lai to not crash
-                ! CNARES()
-                if (LIS_domain(n)%tile(i)%vegt .eq. LIS_rc%urbanclass .and. LIS_rc%lsm .eq. "NOAH32" ) &
-                   LIS_lai(n)%tlai(i) = max(LIS_lai(n)%tlai(i), 0.1)
-             end if
-#endif
-          end do
+             LIS_lai(n)%tlai(i) = wt1 * LIS_lai(n)%lai1(i) + &
+                                  wt2 * LIS_lai(n)%lai2(i)
+             if (LIS_lai(n)%lai1(i).eq.LIS_rc%udef) then
+                LIS_lai(n)%tlai(i) = LIS_lai(n)%lai2(i)
+             endif
+             if (LIS_lai(n)%lai2(i).eq.LIS_rc%udef) then
+                LIS_lai(n)%tlai(i) = LIS_lai(n)%lai1(i)
+             endif
+             if ((LIS_lai(n)%lai1(i).eq.LIS_rc%udef).and.              &
+                 (LIS_lai(n)%lai2(i).eq.LIS_rc%udef)) then
+                LIS_lai(n)%tlai(i) = LIS_rc%udef
+             endif
+          enddo
+!          stop
        enddo
     endif
     TRACE_EXIT("lai_setup")
@@ -2014,7 +1683,7 @@ contains
             "LIS LAI read alarm",&
             LIS_lai(n)%laiIntervalType)
        call LIS_computeTemporalWeights(LIS_rc,&
-            LIS_lai(n)%laiIntervalType, t1,t2,wt1,wt2)
+            LIS_lai(n)%laiIntervalType,t1,t2,wt1,wt2)
 
        if(laiAlarmCheck) then
 
@@ -2031,31 +1700,35 @@ contains
              enddo
              deallocate(value1)
              deallocate(value2)
+
           else
-             call readlai(trim(LIS_rc%uselaimap(n))//char(0), n, &
-                  wt1, wt2, LIS_lai(n)%lai1, LIS_lai(n)%lai2)
+             if (LIS_rc%uselaimap(n).ne."MCD15A2H LAI") then
+                call readlai(trim(LIS_rc%uselaimap(n))//char(0), n, &
+                     wt1, wt2, LIS_lai(n)%lai1, LIS_lai(n)%lai2)
+             endif
           endif
 
-
        endif
+
+       if (LIS_rc%uselaimap(n).eq."MCD15A2H LAI") then
+          call readlai(trim(LIS_rc%uselaimap(n))//char(0), n, &
+                  wt1, wt2, LIS_lai(n)%lai1, LIS_lai(n)%lai2)
+       endif
+
        do i=1,LIS_rc%ntiles(n)
           LIS_lai(n)%tlai(i) = wt1* LIS_lai(n)%lai1(i)+ &
                wt2*LIS_lai(n)%lai2(i)
-#if 0
-!  YDT: 10/18/2011 added a check for minimal lai values
-!    Otherwise noah will crash in CANRES()
-!             if ( LIS_rc%gfracsrc(n) .gt. 0 .and. LIS_gfrac(n)%greenness(i) .gt. 0) &
-!                LIS_lai(n)%tlai(i) = max(LIS_lai(n)%tlai(i), 0.1)
-!  YDT: 10/20/2011 more "elegant" solution: compute greenness from lai if lai is MODIS-RT (src=3).
-             if ( LIS_rc%uselaimap(n) .eq. "MODIS") then !??
-                LIS_gfrac(n)%greenness(i) = 1.0 - exp(-0.52 * LIS_lai(n)%tlai(i) )
-                ! for Urban LC, Noah will assign gfrac=0.05. So need to set a min lai to not crash
-                ! CNARES()
-                if (LIS_domain(n)%tile(i)%vegt .eq. LIS_rc%urbanclass ) &
-                   LIS_lai(n)%tlai(i) = max(LIS_lai(n)%tlai(i), 0.1)
-             end if
-#endif
-       end do
+          if (LIS_lai(n)%lai1(i).eq.LIS_rc%udef) then
+             LIS_lai(n)%tlai(i) = LIS_lai(n)%lai2(i)
+             endif
+          if (LIS_lai(n)%lai2(i).eq.LIS_rc%udef) then
+             LIS_lai(n)%tlai(i) = LIS_lai(n)%lai1(i)
+          endif
+          if ((LIS_lai(n)%lai1(i).eq.LIS_rc%udef).and.                 &
+              (LIS_lai(n)%lai2(i).eq.LIS_rc%udef)) then
+             LIS_lai(n)%tlai(i) = LIS_rc%udef
+          endif
+       enddo
     endif
     TRACE_EXIT("lai_read")
   end subroutine LIS_read_lai
@@ -2244,7 +1917,7 @@ contains
                intervalType = LIS_lai(n)%laiIntervalType)
 
           call LIS_computeTemporalWeights(LIS_rc,&
-               LIS_lai(n)%laiIntervalType, t1,t2,wt1,wt2)
+               LIS_lai(n)%laiIntervalType,t1,t2,wt1,wt2)
 
           allocate(value1(LIS_rc%ntiles(n)))
           allocate(value2(LIS_rc%ntiles(n)))
@@ -2253,9 +1926,6 @@ contains
              call read_LAIclimo(n,t1,value1)
              call read_LAIclimo(n,t2,value2)
           else
-             !EMK Corrected function call.
-             !call readlai(trim(LIS_rc%uselaimap(n))//char(0),n,t1,value1)
-             !call readlai(trim(LIS_rc%uselaimap(n))//char(0),n,t2,value2)
              call readlai(trim(LIS_rc%uselaimap(n))//char(0), &
                   n, wt1, wt2, value1, value2)
           endif
