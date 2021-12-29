@@ -31,6 +31,7 @@ subroutine NoahMP401_main(n)
     use LIS_histDataMod
     use LIS_timeMgrMod, only : LIS_isAlarmRinging
     use LIS_constantsMod,  only : LIS_CONST_RHOFW   !New
+    use LIS_vegDataMod,    only : LIS_lai
     use LIS_logMod, only     : LIS_logunit, LIS_endrun
     use LIS_FORC_AttributesMod
     use NoahMP401_lsmMod
@@ -43,7 +44,7 @@ subroutine NoahMP401_main(n)
     real                 :: dt
     real                 :: lat, lon
     real                 :: tempval
-    integer              :: row, col
+    integer              :: row, col, tid
     integer              :: year, month, day, hour, minute, second
     logical              :: alarmCheck
 
@@ -523,7 +524,15 @@ subroutine NoahMP401_main(n)
             tmp_wood            = NOAHMP401_struc(n)%noahmp401(t)%wood
             tmp_stblcp          = NOAHMP401_struc(n)%noahmp401(t)%stblcp
             tmp_fastcp          = NOAHMP401_struc(n)%noahmp401(t)%fastcp
-            tmp_lai             = NOAHMP401_struc(n)%noahmp401(t)%lai
+            if ((tmp_dveg_opt.ge.7).and.(tmp_dveg_opt.le.9)) then
+               tid = LIS_surface(n,LIS_rc%lsm_index)%tile(t)%tile_id
+               tmp_lai          = LIS_lai(n)%tlai(tid)
+               if (tmp_lai.eq.LIS_rc%udef) then
+                  tmp_lai          = NOAHMP401_struc(n)%noahmp401(t)%lai
+               endif
+            else
+               tmp_lai          = NOAHMP401_struc(n)%noahmp401(t)%lai
+            endif
             tmp_sai             = NOAHMP401_struc(n)%noahmp401(t)%sai
             tmp_tauss           = NOAHMP401_struc(n)%noahmp401(t)%tauss
             tmp_smoiseq(:)      = NOAHMP401_struc(n)%noahmp401(t)%smoiseq(:)
@@ -1034,7 +1043,7 @@ subroutine NoahMP401_main(n)
             call LIS_diagnoseSurfaceOutputVar(n, t, LIS_MOC_CARBON_SHALLOWSOIL, value = NOAHMP401_struc(n)%noahmp401(t)%fastcp, &
                                               vlevel=1, unit="g m-2", direction="-", surface_type = LIS_rc%lsm_index)
 
-            ![ 38] output variable: lai (unit=-). ***  leave area index
+            ![ 38] output variable: lai (unit=-). ***  leaf area index
             call LIS_diagnoseSurfaceOutputVar(n, t, LIS_MOC_LAI, value = NOAHMP401_struc(n)%noahmp401(t)%lai, &
                                               vlevel=1, unit="-", direction="-", surface_type = LIS_rc%lsm_index)
 
