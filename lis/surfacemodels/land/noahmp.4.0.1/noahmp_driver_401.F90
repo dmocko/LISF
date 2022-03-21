@@ -572,7 +572,8 @@ subroutine noahmp_driver_401(n, ttile, itimestep, &
     ! with dveg_opt==1/6/7, shdfac is fed directly to fveg
     vegfra = month_d_401(shdfac_monthly, nowdate)
   else
-    ! with dveg_opt==2, fveg is computed from lai and sai, and shdfac is unused
+    ! with dveg_opt==2/3/8, fveg is computed from lai and sai, and shdfac is unused
+    ! with dveg_opt==4/5/9, fveg is set to the maximum shdfac, and shdfac is unused
     vegfra = -1.E36   ! To match with HRLDAS initialization
   endif
   vegmax = maxval(shdfac_monthly)
