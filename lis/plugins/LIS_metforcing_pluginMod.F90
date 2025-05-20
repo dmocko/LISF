@@ -208,6 +208,10 @@ subroutine LIS_metforcing_plugin
    use nldas2_forcingMod
 #endif
 
+#if ( defined MF_NLDAS30 )
+   use nldas30_forcingMod
+#endif
+
 #if ( defined MF_GEIS )
    use geis_forcingMod
 #endif   
@@ -502,6 +506,13 @@ subroutine LIS_metforcing_plugin
    external timeinterp_nldas2
    external finalize_nldas2
    external reset_nldas2
+#endif
+
+#if ( defined MF_NLDAS30 )
+   external get_nldas30
+   external timeinterp_nldas30
+   external finalize_nldas30
+   external reset_nldas30
 #endif
 
 #if ( defined MF_GEIS )
@@ -973,6 +984,16 @@ subroutine LIS_metforcing_plugin
                                   timeinterp_nldas2)
    call registerfinalmetforc(trim(LIS_nldas2Id)//char(0),finalize_nldas2)
    call registerresetmetforc(trim(LIS_nldas2Id)//char(0),reset_nldas2)
+#endif
+
+#if ( defined MF_NLDAS30 )
+! - NLDAS-3 Forcing:
+   call registerinitmetforc(trim(LIS_nldas30Id)//char(0),init_nldas30)
+   call registerretrievemetforc(trim(LIS_nldas30Id)//char(0),get_nldas30)
+   call registertimeinterpmetforc(trim(LIS_nldas30Id)//char(0), &
+                                  timeinterp_nldas30)
+   call registerfinalmetforc(trim(LIS_nldas30Id)//char(0),finalize_nldas30)
+   call registerresetmetforc(trim(LIS_nldas30Id)//char(0),reset_nldas30)
 #endif
 
 #if ( defined MF_GEIS )
