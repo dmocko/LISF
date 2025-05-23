@@ -160,6 +160,7 @@ subroutine init_nldas30(findex)
   do n = 1,LIS_rc%nnest
      nldas30_struc(n)%ncold = 11700
      nldas30_struc(n)%nrold = 6500
+     nldas30_struc(n)%mi = nldas30_struc(n)%ncold*nldas30_struc(n)%nrold
   enddo
 
   call readcrd_nldas30
@@ -172,22 +173,27 @@ subroutine init_nldas30(findex)
      call LIS_update_timestep(LIS_rc,n,nldas30_struc(n)%ts)
   enddo
 
+  ! NLDAS-3 domain grid description
+  ! ncold and nrold are independent of nest
   gridDesci = 0
+  gridDesci(:,1)  = 0
+  gridDesci(:,2)  = nldas30_struc(1)%ncold
+  gridDesci(:,3)  = nldas30_struc(1)%nrold
+  gridDesci(:,4)  =    7.005
+  gridDesci(:,5)  = -168.995
+  gridDesci(:,6)  = 128
+  gridDesci(:,7)  =   71.995
+  gridDesci(:,8)  =  -52.005
+  gridDesci(:,9)  =    0.01
+  gridDesci(:,10) =    0.01
+  gridDesci(:,20) = 0
+
 
   do n = 1,LIS_rc%nnest
-     gridDesci(n,1)  = 0
-     gridDesci(n,2)  = nldas30_struc(n)%ncold
-     gridDesci(n,3)  = nldas30_struc(n)%nrold
-     gridDesci(n,4)  =  -52.005
-     gridDesci(n,5)  = -168.995
-     gridDesci(n,6)  = 128
-     gridDesci(n,7)  =    7.005
-     gridDesci(n,8)  =   71.995
-     gridDesci(n,9)  =    0.01
-     gridDesci(n,10) =    0.01
-     gridDesci(n,20) = 0
 
-     nldas30_struc(n)%mi = nldas30_struc(n)%ncold*nldas30_struc(n)%nrold
+!<debug -- jim testing>
+gridDesci(n, :) = LIS_rc%gridDesc(n,:)
+!</debug -- jim testing>
 
 ! Setting up weights for Interpolation
      if (trim(LIS_rc%met_interp(findex)).eq."bilinear") then
