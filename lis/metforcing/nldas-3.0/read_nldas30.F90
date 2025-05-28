@@ -196,7 +196,7 @@ end subroutine read_nldas30
 ! \label{interp_nldas30_var}
 !
 ! !INTERFACE:
-#if 0
+#if 1
 subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
    pcp_flag,nldasforc)
 
@@ -244,7 +244,7 @@ subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
          do c = 1, LIS_rc%lnc(n) !nldas30_struc(n)%ncold
             k = c+(r-1)*LIS_rc%lnc(n) !nldas30_struc(n)%ncold
             f(k) = input_var(c,r,t)
-            if (f(k).eq.1.e+15) then
+            if (f(k).eq.-9999.0) then
                f(k)  = LIS_rc%udef
                lb(k) = .false.
             endif
@@ -289,6 +289,7 @@ subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
 
 end subroutine interp_nldas30_var
 #endif
+#if 0
 subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
    pcp_flag,nldasforc)
 
@@ -362,3 +363,4 @@ endif
    enddo
 
 end subroutine interp_nldas30_var
+#endif
