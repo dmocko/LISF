@@ -16,16 +16,14 @@
 ! !REVISION HISTORY:
 ! 16 May 2025: David Mocko, Initial Specification
 !                           (derived from read_merra2.F90)
+! 04 Jun 2025: James Geiger, add support read subsets of NLDAS-3 domain
 !
 ! !INTERFACE:
 subroutine read_nldas30(n,order,month,findex,filename,nldasforc,ferror)
 ! !USES:
    use LIS_logMod
    use LIS_FORC_AttributesMod
-!<debug -- jim testing>
-   !use LIS_coreMod,       only  : LIS_rc,LIS_domain,LIS_masterproc
-   use LIS_coreMod,       only  : LIS_rc,LIS_domain,LIS_masterproc,LIS_ews_ind, LIS_nss_ind,LIS_localPet
-!</debug -- jim testing>
+   use LIS_coreMod,       only  : LIS_rc,LIS_domain,LIS_masterproc
    use LIS_metforcingMod, only  : LIS_forc
    use nldas30_forcingMod, only : nldas30_struc
 #if (defined USE_NETCDF3 || defined USE_NETCDF4)
@@ -90,18 +88,16 @@ subroutine read_nldas30(n,order,month,findex,filename,nldasforc,ferror)
    integer   :: mo
    logical   :: read_lnd
 
-   real      :: tair(LIS_rc%lnc(n),LIS_rc%lnr(n),24)
-   real      :: qair(LIS_rc%lnc(n),LIS_rc%lnr(n),24)
-   real      :: uwind(LIS_rc%lnc(n),LIS_rc%lnr(n),24)
-   real      :: vwind(LIS_rc%lnc(n),LIS_rc%lnr(n),24)
-   real      :: ps(LIS_rc%lnc(n),LIS_rc%lnr(n),24)
-   real      :: rainf(LIS_rc%lnc(n),LIS_rc%lnr(n),24)
-   real      :: swdn(LIS_rc%lnc(n),LIS_rc%lnr(n),24)
-   real      :: lwdn(LIS_rc%lnc(n),LIS_rc%lnr(n),24)
+   real      :: tair(nldas30_struc(n)%bb%NLON,nldas30_struc(n)%bb%NLAT,24)
+   real      :: qair(nldas30_struc(n)%bb%NLON,nldas30_struc(n)%bb%NLAT,24)
+   real      :: uwind(nldas30_struc(n)%bb%NLON,nldas30_struc(n)%bb%NLAT,24)
+   real      :: vwind(nldas30_struc(n)%bb%NLON,nldas30_struc(n)%bb%NLAT,24)
+   real      :: ps(nldas30_struc(n)%bb%NLON,nldas30_struc(n)%bb%NLAT,24)
+   real      :: rainf(nldas30_struc(n)%bb%NLON,nldas30_struc(n)%bb%NLAT,24)
+   real      :: swdn(nldas30_struc(n)%bb%NLON,nldas30_struc(n)%bb%NLAT,24)
+   real      :: lwdn(nldas30_struc(n)%bb%NLON,nldas30_struc(n)%bb%NLAT,24)
 
-!<debug -- jim testing>
    integer :: sC, sR, cC, cR
-!</debug -- jim testing>
 !_______________________________________________________________________
 
 #if (defined USE_NETCDF3)
@@ -111,7 +107,7 @@ subroutine read_nldas30(n,order,month,findex,filename,nldasforc,ferror)
 
 #if (defined USE_NETCDF4)
    ferror = 0
-   mo = LIS_rc%lnc(n)*LIS_rc%lnr(n)
+   mo = nldas30_struc(n)%bb%NLON*nldas30_struc(n)%bb%NLAT
 
    ! Read NLDAS-3 fields
    inquire(file=filename,exist=file_exists)
@@ -121,15 +117,10 @@ subroutine read_nldas30(n,order,month,findex,filename,nldasforc,ferror)
       call LIS_verify(nf90_open(path=trim(filename),mode=NF90_NOWRITE,  &
          ncid=ftn),'nf90_open failed in read_nldas30')
 
-!<debug -- jim testing>
-      ! I need to compute the size of each subdomain.
-      ! For now, that will be lnc,lnr.
-      ! I need indices into global grid for the start array.
-      sC = LIS_ews_ind(n,LIS_localPet+1) + 1 - 1
-      sR = LIS_nss_ind(n,LIS_localPet+1) + 1 - 1
-      cC = LIS_rc%lnc(n)
-      cR = LIS_rc%lnr(n)
-!</debug -- jim testing>
+      sC = nldas30_struc(n)%bb%i_llon
+      sR = nldas30_struc(n)%bb%i_llat
+      cC = nldas30_struc(n)%bb%NLON
+      cR = nldas30_struc(n)%bb%NLAT
 
       call LIS_verify(nf90_inq_varid(ftn,'Tair',tmpId), &
          'nf90_inq_varid failed for Tair in read_nldas30')
@@ -214,7 +205,7 @@ subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
    integer, intent(in)    :: n
    integer, intent(in)    :: findex
    integer, intent(in)    :: month
-   real,    intent(in)    :: input_var(LIS_rc%lnc(n), LIS_rc%lnr(n),24)
+   real,    intent(in)    :: input_var(nldas30_struc(n)%bb%NLON, nldas30_struc(n)%bb%NLAT,24)
    integer, intent(in)    :: var_index
    logical, intent(in)    :: pcp_flag
    real,    intent(inout) :: nldasforc(nldas30_struc(n)%nvars,24, &
@@ -229,20 +220,20 @@ subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
    integer   :: doy
    integer   :: ftn
    integer   :: pcp1Id,pcp2Id,pcp3Id,pcp4Id,pcp5Id,pcp6Id
-   real      :: f (LIS_rc%lnc(n)*LIS_rc%lnr(n))
-   logical*1 :: lb(LIS_rc%lnc(n)*LIS_rc%lnr(n))
+   real      :: f (nldas30_struc(n)%bb%NLON*nldas30_struc(n)%bb%NLAT)
+   logical*1 :: lb(nldas30_struc(n)%bb%NLON*nldas30_struc(n)%bb%NLAT)
    logical*1 :: lo(LIS_rc%lnc(n)*LIS_rc%lnr(n))
    integer   :: input_size
    logical   :: scal_read_flag
 ! _____________________________________________________________
 
-   input_size = LIS_rc%lnc(n)*LIS_rc%lnr(n)
+   input_size = nldas30_struc(n)%bb%NLON*nldas30_struc(n)%bb%NLAT
 
    do t = 1,24
       lb = .true.
-      do r = 1, LIS_rc%lnr(n) !nldas30_struc(n)%nrold
-         do c = 1, LIS_rc%lnc(n) !nldas30_struc(n)%ncold
-            k = c+(r-1)*LIS_rc%lnc(n) !nldas30_struc(n)%ncold
+      do r = 1, nldas30_struc(n)%bb%NLAT
+         do c = 1, nldas30_struc(n)%bb%NLON
+            k = c+(r-1)*nldas30_struc(n)%bb%NLON
             f(k) = input_var(c,r,t)
             if (f(k).eq.-9999.0) then
                f(k)  = LIS_rc%udef
@@ -290,6 +281,8 @@ subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
 end subroutine interp_nldas30_var
 #endif
 #if 0
+! NOOP spatial interpolation scheme.  Simply assign the
+! input_var values into the nldasforc array.
 subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
    pcp_flag,nldasforc)
 

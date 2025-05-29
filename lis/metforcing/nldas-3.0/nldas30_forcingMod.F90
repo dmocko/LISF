@@ -63,6 +63,7 @@ module nldas30_forcingMod
 !
 ! !USES:
   use LIS_constantsMod, only : LIS_CONST_PATH_LEN
+  use bounding_box_mod
 
   implicit none
 
@@ -109,6 +110,8 @@ module nldas30_forcingMod
 
      real, allocatable :: metdata1(:,:,:)
      real, allocatable :: metdata2(:,:,:)
+
+     type(bounding_box_type) :: bb
   end type nldas30_type_dec
 
   type(nldas30_type_dec), allocatable :: nldas30_struc(:)
@@ -123,18 +126,19 @@ contains
 ! !REVISION HISTORY:
 ! 16 May 2025: David Mocko, Initial Specification
 !                           (derived from init_merra2.F90)
+! 04 Jun 2025: James Geiger, add support read subsets of NLDAS-3 domain
 !
 ! !INTERFACE:
 subroutine init_nldas30(findex)
 
 ! !USES:
-  use LIS_coreMod
-  use LIS_timeMgrMod
-  use LIS_logMod
+   use LIS_coreMod
+   use LIS_timeMgrMod
+   use LIS_logMod
 
-  implicit none
+   implicit none
 ! !AGRUMENTS:
-  integer, intent(in) :: findex
+   integer, intent(in) :: findex
 !
 ! !DESCRIPTION:
 !  Defines the native resolution of the input forcing for NLDAS-3
@@ -152,51 +156,64 @@ subroutine init_nldas30(findex)
 !    computes the neighbor, weights for conservative interpolation
 !  \end{description}
 !EOP
-  real :: gridDesci(LIS_rc%nnest,50)
-  integer :: n
+   real :: gridDesci(LIS_rc%nnest,50)
+   integer :: n
+   real, allocatable, dimension(:) :: nldas30_lon, nldas30_lat
+   type(bounding_box_type) :: bb
 
-  allocate(nldas30_struc(LIS_rc%nnest))
+   allocate(nldas30_struc(LIS_rc%nnest))
 
-  do n = 1,LIS_rc%nnest
-     nldas30_struc(n)%ncold = 11700
-     nldas30_struc(n)%nrold = 6500
-     nldas30_struc(n)%mi = nldas30_struc(n)%ncold*nldas30_struc(n)%nrold
-  enddo
+   do n = 1,LIS_rc%nnest
+      nldas30_struc(n)%ncold = 11700
+      nldas30_struc(n)%nrold = 6500
+      nldas30_struc(n)%mi = nldas30_struc(n)%ncold*nldas30_struc(n)%nrold
+   enddo
 
-  call readcrd_nldas30
-  LIS_rc%met_nf(findex) = 8
+   call readcrd_nldas30
+   LIS_rc%met_nf(findex) = 8
 
-  nldas30_struc%reset_flag = .false.
+   nldas30_struc%reset_flag = .false.
 
-  do n = 1,LIS_rc%nnest
-     nldas30_struc(n)%ts = 3600
-     call LIS_update_timestep(LIS_rc,n,nldas30_struc(n)%ts)
-  enddo
+   do n = 1,LIS_rc%nnest
+      nldas30_struc(n)%ts = 3600
+      call LIS_update_timestep(LIS_rc,n,nldas30_struc(n)%ts)
+   enddo
 
-  ! NLDAS-3 domain grid description
-  ! ncold and nrold are independent of nest
-  gridDesci = 0
-  gridDesci(:,1)  = 0
-  gridDesci(:,2)  = nldas30_struc(1)%ncold
-  gridDesci(:,3)  = nldas30_struc(1)%nrold
-  gridDesci(:,4)  =    7.005
-  gridDesci(:,5)  = -168.995
-  gridDesci(:,6)  = 128
-  gridDesci(:,7)  =   71.995
-  gridDesci(:,8)  =  -52.005
-  gridDesci(:,9)  =    0.01
-  gridDesci(:,10) =    0.01
-  gridDesci(:,20) = 0
+   ! NLDAS-3 domain grid description
+   ! ncold and nrold are independent of nest
+   gridDesci = 0
+   gridDesci(:,1)  = 0
+   gridDesci(:,2)  = nldas30_struc(1)%ncold
+   gridDesci(:,3)  = nldas30_struc(1)%nrold
+   gridDesci(:,4)  =    7.005
+   gridDesci(:,5)  = -168.995
+   gridDesci(:,6)  = 128
+   gridDesci(:,7)  =   71.995
+   gridDesci(:,8)  =  -52.005
+   gridDesci(:,9)  =    0.01
+   gridDesci(:,10) =    0.01
+   gridDesci(:,20) = 0
 
+   ! ncold and nrold are independent of nest
+   allocate(nldas30_lon(nldas30_struc(1)%ncold))
+   allocate(nldas30_lat(nldas30_struc(1)%nrold))
 
-  do n = 1,LIS_rc%nnest
+   call nldas30_earth_coords(gridDesci(1,:), nldas30_lon, nldas30_lat)
 
-!<debug -- jim testing>
-gridDesci(n, :) = LIS_rc%gridDesc(n,:)
-!</debug -- jim testing>
+   do n = 1,LIS_rc%nnest
+      bb = find_bounding_box(nldas30_struc(1)%ncold, nldas30_struc(1)%nrold, nldas30_lat, nldas30_lon, minval(LIS_domain(n)%lat), maxval(LIS_domain(n)%lat), minval(LIS_domain(n)%lon), maxval(LIS_domain(n)%lon))
 
-! Setting up weights for Interpolation
-     if (trim(LIS_rc%met_interp(findex)).eq."bilinear") then
+      gridDesci(n,2)  = bb%NLON
+      gridDesci(n,3)  = bb%NLAT
+      gridDesci(n,4)  = nldas30_lat(bb%i_llat)
+      gridDesci(n,5)  = nldas30_lon(bb%i_llon)
+      gridDesci(n,7)  = nldas30_lat(bb%i_ulat)
+      gridDesci(n,8)  = nldas30_lon(bb%i_ulon)
+
+      nldas30_struc(n)%bb = bb
+
+      ! Setting up weights for Interpolation
+      if (trim(LIS_rc%met_interp(findex)).eq."bilinear") then
          allocate(nldas30_struc(n)%n111(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%n121(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%n211(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
@@ -206,13 +223,13 @@ gridDesci(n, :) = LIS_rc%gridDesc(n,:)
          allocate(nldas30_struc(n)%w211(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%w221(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          call bilinear_interp_input(n,gridDesci(n,:),                  &
-                       nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
-                       nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
-                       nldas30_struc(n)%w111,nldas30_struc(n)%w121,    &
-                       nldas30_struc(n)%w211,nldas30_struc(n)%w221)
+            nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
+            nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
+            nldas30_struc(n)%w111,nldas30_struc(n)%w121,    &
+            nldas30_struc(n)%w211,nldas30_struc(n)%w221)
 
-     elseif (trim(LIS_rc%met_interp(findex)).eq."budget-bilinear") then
-        allocate(nldas30_struc(n)%n111(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
+      elseif (trim(LIS_rc%met_interp(findex)).eq."budget-bilinear") then
+         allocate(nldas30_struc(n)%n111(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%n121(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%n211(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%n221(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
@@ -221,10 +238,10 @@ gridDesci(n, :) = LIS_rc%gridDesc(n,:)
          allocate(nldas30_struc(n)%w211(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%w221(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          call bilinear_interp_input(n,gridDesci(n,:),                  &
-                       nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
-                       nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
-                       nldas30_struc(n)%w111,nldas30_struc(n)%w121,    &
-                       nldas30_struc(n)%w211,nldas30_struc(n)%w221)
+            nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
+            nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
+            nldas30_struc(n)%w111,nldas30_struc(n)%w121,    &
+            nldas30_struc(n)%w211,nldas30_struc(n)%w221)
 
          allocate(nldas30_struc(n)%n112(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
          allocate(nldas30_struc(n)%n122(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
@@ -235,51 +252,107 @@ gridDesci(n, :) = LIS_rc%gridDesc(n,:)
          allocate(nldas30_struc(n)%w212(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
          allocate(nldas30_struc(n)%w222(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
          call conserv_interp_input(n,gridDesci(n,:),                   &
-                      nldas30_struc(n)%n112,nldas30_struc(n)%n122,     &
-                      nldas30_struc(n)%n212,nldas30_struc(n)%n222,     &
-                      nldas30_struc(n)%w112,nldas30_struc(n)%w122,     &
-                      nldas30_struc(n)%w212,nldas30_struc(n)%w222)
+            nldas30_struc(n)%n112,nldas30_struc(n)%n122,     &
+            nldas30_struc(n)%n212,nldas30_struc(n)%n222,     &
+            nldas30_struc(n)%w112,nldas30_struc(n)%w122,     &
+            nldas30_struc(n)%w212,nldas30_struc(n)%w222)
 
-     elseif (trim(LIS_rc%met_interp(findex)).eq."neighbor") then
-        allocate(nldas30_struc(n)%n113(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
-        call neighbor_interp_input(n,gridDesci(n,:),nldas30_struc(n)%n113)
+      elseif (trim(LIS_rc%met_interp(findex)).eq."neighbor") then
+         allocate(nldas30_struc(n)%n113(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
+         call neighbor_interp_input(n,gridDesci(n,:),nldas30_struc(n)%n113)
 
-     else
-        write(LIS_logunit,*) '[ERR] Interpolation option '//           &
-                              trim(LIS_rc%met_interp(findex))//        &
-                             ' for NLDAS-3 forcing is not supported'
-        call LIS_endrun
-     endif
+      else
+         write(LIS_logunit,*) '[ERR] Interpolation option '//           &
+            trim(LIS_rc%met_interp(findex))//        &
+            ' for NLDAS-3 forcing is not supported'
+         call LIS_endrun
+      endif
 
-     call LIS_registerAlarm("NLDAS-3 forcing alarm",86400.0,86400.0)
-     nldas30_struc(n)%startFlag = .true.
-     nldas30_struc(n)%dayFlag = .true.
+      call LIS_registerAlarm("NLDAS-3 forcing alarm",86400.0,86400.0)
+      nldas30_struc(n)%startFlag = .true.
+      nldas30_struc(n)%dayFlag = .true.
 
-     nldas30_struc(n)%nvars = 8
+      nldas30_struc(n)%nvars = 8
 
-     allocate(nldas30_struc(n)%nldasforc1(1,nldas30_struc(n)%nvars,24, &
-                                          LIS_rc%lnc(n)*LIS_rc%lnr(n)))
-     allocate(nldas30_struc(n)%nldasforc2(1,nldas30_struc(n)%nvars,24, &
-                                          LIS_rc%lnc(n)*LIS_rc%lnr(n)))
+      allocate(nldas30_struc(n)%nldasforc1(1,nldas30_struc(n)%nvars,24, &
+         LIS_rc%lnc(n)*LIS_rc%lnr(n)))
+      allocate(nldas30_struc(n)%nldasforc2(1,nldas30_struc(n)%nvars,24, &
+         LIS_rc%lnc(n)*LIS_rc%lnr(n)))
 
-     nldas30_struc(n)%st_iterid = 1
-     nldas30_struc(n)%en_iterId = 1
-     nldas30_struc(n)%nIter = 1
+      nldas30_struc(n)%st_iterid = 1
+      nldas30_struc(n)%en_iterId = 1
+      nldas30_struc(n)%nIter = 1
 
-     allocate(nldas30_struc(n)%metdata1(1,LIS_rc%met_nf(findex),       &
-                                        LIS_rc%ngrid(n)))
-     allocate(nldas30_struc(n)%metdata2(1,LIS_rc%met_nf(findex),       &
-                                        LIS_rc%ngrid(n)))
+      allocate(nldas30_struc(n)%metdata1(1,LIS_rc%met_nf(findex),       &
+         LIS_rc%ngrid(n)))
+      allocate(nldas30_struc(n)%metdata2(1,LIS_rc%met_nf(findex),       &
+         LIS_rc%ngrid(n)))
 
-     nldas30_struc(n)%metdata1 = 0
-     nldas30_struc(n)%metdata2 = 0
+      nldas30_struc(n)%metdata1 = 0
+      nldas30_struc(n)%metdata2 = 0
 
-     nldas30_struc(n)%nldasforc1 = LIS_rc%udef
-     nldas30_struc(n)%nldasforc2 = LIS_rc%udef
+      nldas30_struc(n)%nldasforc1 = LIS_rc%udef
+      nldas30_struc(n)%nldasforc2 = LIS_rc%udef
 
-  enddo   ! End nest loop
+   enddo
 
+   deallocate(nldas30_lon)
+   deallocate(nldas30_lat)
 end subroutine init_nldas30
 
-end module nldas30_forcingMod
 
+!BOP
+!
+! !ROUTINE: nldas30_earth_coords
+! \label{nldas30_earth_coords}
+!
+! !REVISION HISTORY:
+! 04 Jun 2025: James Geiger, initial specification
+!
+! !INTERFACE:
+subroutine nldas30_earth_coords(gridDesci, nldas3_lon, nldas3_lat)
+! !USES:
+!  none
+!
+   implicit none
+!
+! !AGRUMENTS:
+   real :: gridDesci(50)
+   real, dimension(gridDesci(2)) :: nldas3_lon
+   real, dimension(gridDesci(3)) :: nldas3_lat
+!
+! !DESCRIPTION:
+!  Compute an array of latitudes and an array of longitudes
+!  for the full NLDAS-3 domain.
+!
+!  \begin{description}
+!  \item[gridDesci]
+!    grid description array for the NLDAS-3 domain
+!  \item[nldas3_lon]
+!    Array of longitude values for the NLDAS-3 domain
+!  \item[nldas3_lat]
+!    Array of latitude values for the NLDAS-3 domain
+!  \end{description}
+!
+!EOP
+
+   integer :: i, NC, NR
+   real :: res, start
+
+   NC = gridDesci(2)
+   NR = gridDesci(3)
+
+   res = gridDesci(9)
+   start = gridDesci(5)
+   do i = 1, NC
+      nldas3_lon(i) = start + (i-1)*res
+   enddo
+
+   res = gridDesci(10)
+   start = gridDesci(4)
+   do i = 1, NR
+      nldas3_lat(i) = start + (i-1)*res
+   enddo
+end subroutine nldas30_earth_coords
+
+end module nldas30_forcingMod
