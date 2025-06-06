@@ -207,13 +207,8 @@ subroutine get_nldas30(n,findex)
      hr1 = 0
      mn1 = 0
      ss1 = 0
-     if ((LIS_rc%hr.eq.0).and.(LIS_rc%mn.lt.30)) then
-        ! initialize ringtime to today at 00:30z
-        ts1 = 30*60
-     else
-        ! initialize ringtime to tomorrow at 00:30z
-        ts1 =86400 + 30*60 ! 1 day plus 30 minutes
-     endif
+     ! initialize ringtime to tomorrow at 00:00z
+     ts1 = 86400 ! 1 day
      call LIS_tick(nldas30_struc(n)%ringtime,doy1,gmt1,                &
                    yr1,mo1,da1,hr1,mn1,ss1,ts1)
   endif
@@ -236,14 +231,14 @@ subroutine get_nldas30(n,findex)
         movetime = 1
      endif
 
-     ! reset ringtime to tomorrow at 00:30z
+     ! reset ringtime to tomorrow at 00:00z
      yr1 = LIS_rc%yr
      mo1 = LIS_rc%mo
      da1 = LIS_rc%da
      hr1 = 0
      mn1 = 0
      ss1 = 0
-     ts1 = 86400 + 30*60 ! 1 day plus 30 minutes
+     ts1 = 86400 ! 1 day
      call LIS_tick(nldas30_struc(n)%ringtime,doy1,gmt1,                &
                    yr1,mo1,da1,hr1,mn1,ss1,ts1)
   endif
@@ -258,15 +253,7 @@ subroutine get_nldas30(n,findex)
      hr1 = LIS_rc%hr
      mn1 = LIS_rc%mn
      ss1 = 0
-
-     if ((hr1.eq.0).and.(mn1.lt.30)) then
-        ! need yesterday for bookend1
-        ts1 = -60*60
-     else
-        ! need today for bookend1
-        ts1 = 0
-     endif
-
+     ts1 = 0
      call LIS_tick(time1,doy1,gmt1,yr1,mo1,da1,hr1,mn1,ss1,ts1)
   endif
 
@@ -278,21 +265,12 @@ subroutine get_nldas30(n,findex)
      mo2 = LIS_rc%mo
      da2 = LIS_rc%da
      hr2 = LIS_rc%hr
-     mn2 = LIS_rc%mn
+     mn2 = 0
      ss2 = 0
 
      if (nldas30_struc(n)%findtime1.eq.1) then
-        if ((hr2.eq.0).and.(mn2.lt.30)) then
-           ! need today for bookend2
-           ts2 = 0
-        else
-           ! need tomorrow for bookend2
-           ts2 = 24*60*60
-        endif
-     else
-        ! LIS_rc%hr == 0
         ! need tomorrow for bookend2
-        ts2 = 24*60*60
+        ts2 = 86400
      endif
 
      call LIS_tick(time2,doy2,gmt2,yr2,mo2,da2,hr2,mn2,ss2,ts2)
@@ -343,55 +321,28 @@ subroutine get_nldas30(n,findex)
      mn2 = 0
      ss2 = 0
 
-     if (LIS_rc%mn.lt.30) then
-        ts1 = -30*60
-        ts2 =  30*60
-     else
-        ts1 = 30*60
-        ts2 = 90*60
-     endif
+     ts1 = 0
+     ts2 = 60*60
 
      call LIS_tick(time1,doy1,gmt1,yr1,mo1,da1,hr1,mn1,ss1,ts1)
      call LIS_tick(time2,doy2,gmt2,yr2,mo2,da2,hr2,mn2,ss2,ts2)
 
      if (LIS_rc%nts(n).eq.3600) then   ! == 1-hr timestep
         if (LIS_rc%hr.eq.23) then
-           order = 1
-           hr_int1 = 23
-           hr_int2 = 24
-        elseif (LIS_rc%hr.eq.0) then
-           order = 2
            hr_int1 = 24
            hr_int2 = 1
         else
-           order = 1
            hr_int1 = hr1+1
            hr_int2 = hr2+1
         endif
      else  ! Timesteps < 1 hour
         if (LIS_rc%hr.eq.23) then
-           if (LIS_rc%mn.ge.30) then
-              order = 2
-              hr_int1 = 24
-              hr_int2 = 1
-           else    ! If at hour 23 and LIS minute < 30:
-              order = 1
-              hr_int1 = 23
-              hr_int2 = 24
-           endif
+           hr_int1 = 24
+           hr_int2 = 1
         ! For all other hours (0-22Z):
         else
-           ! If at hour=0Z and minute < 30:   ! Should this be done when hourly time step run??
-           if ((LIS_rc%hr.eq.0).and.(LIS_rc%mn.lt.30)) then
-              order = 2
-              hr_int1 = 24
-              hr_int2 = 1
-           ! If at any other hour (unless 0 hr .and. >= 30 minutes):
-           else
-              order = 1
-              hr_int1 = hr1+1
-              hr_int2 = hr2+1
-           endif
+           hr_int1 = hr1+1
+           hr_int2 = hr2+1
         endif
      endif
 
@@ -399,21 +350,12 @@ subroutine get_nldas30(n,findex)
      do r = 1,LIS_rc%lnr(n)
         do c = 1,LIS_rc%lnc(n)
            if (LIS_domain(n)%gindex(c,r).ne.-1) then
-              if (order.eq.1) then
-                 nldas30_struc(n)%metdata1(:,:,LIS_domain(n)%gindex(c,r)) = &
-                         nldas30_struc(n)%nldasforc1(:,:,hr_int1,&  ! Store hour: Current hour (same day)
-                         (c+(r-1)*LIS_rc%lnc(n)))
-                 nldas30_struc(n)%metdata2(:,:,LIS_domain(n)%gindex(c,r)) = &
-                         nldas30_struc(n)%nldasforc1(:,:,hr_int2,&  ! Store hour:  next hour (same day)
-                         (c+(r-1)*LIS_rc%lnc(n)))
-              else
-                 nldas30_struc(n)%metdata1(:,:,LIS_domain(n)%gindex(c,r)) = &
-                         nldas30_struc(n)%nldasforc1(:,:,hr_int1,&  ! Store hour: Current hour (same day)
-                         (c+(r-1)*LIS_rc%lnc(n)))
-                 nldas30_struc(n)%metdata2(:,:,LIS_domain(n)%gindex(c,r)) = &
-                         nldas30_struc(n)%nldasforc2(:,:,hr_int2,&  ! Store hour:  next hour (same day)
-                         (c+(r-1)*LIS_rc%lnc(n)))
-              endif
+              nldas30_struc(n)%metdata1(:,:,LIS_domain(n)%gindex(c,r)) = &
+                      nldas30_struc(n)%nldasforc1(:,:,hr_int1,&  ! Store hour: Current hour (same day)
+                      (c+(r-1)*LIS_rc%lnc(n)))
+              nldas30_struc(n)%metdata2(:,:,LIS_domain(n)%gindex(c,r)) = &
+                      nldas30_struc(n)%nldasforc1(:,:,hr_int2,&  ! Store hour:  next hour (same day)
+                      (c+(r-1)*LIS_rc%lnc(n)))
            endif
         enddo
      enddo
