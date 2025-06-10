@@ -19,18 +19,18 @@
 ! !INTERFACE:
 subroutine get_nldas30(n,findex)
 ! !USES:
-  use LIS_coreMod
-  use LIS_timeMgrMod
-  use LIS_logMod
-  use LIS_metforcingMod
-  use nldas30_forcingMod
-  use LIS_constantsMod, only : LIS_CONST_PATH_LEN
+   use LIS_coreMod
+   use LIS_timeMgrMod
+   use LIS_logMod
+   use LIS_metforcingMod
+   use nldas30_forcingMod
+   use LIS_constantsMod, only : LIS_CONST_PATH_LEN
 
-  implicit none
+   implicit none
 
 ! !ARGUMENTS:
-  integer, intent(in) :: n
-  integer, intent(in) :: findex
+   integer, intent(in) :: n
+   integer, intent(in) :: findex
 !
 ! !DESCRIPTION:
 !  Opens, reads, and interpolates 1-hourly NLDAS-3 forcing.
@@ -157,214 +157,214 @@ subroutine get_nldas30(n,findex)
 !    call to read the NLDAS-3 data and perform spatial interpolation
 !  \end{description}
 !EOP
-  integer           :: order
-  integer           :: ferror
-  character(len=LIS_CONST_PATH_LEN) :: filename
-  integer           :: c,r,kk
-  integer           :: yr1,mo1,da1,hr1,mn1,ss1,doy1
-  integer           :: yr2,mo2,da2,hr2,mn2,ss2,doy2
-  real*8            :: time1,time2,timenow
-  real              :: gmt1,gmt2,ts1,ts2
-  integer           :: gid
+   integer           :: order
+   integer           :: ferror
+   character(len=LIS_CONST_PATH_LEN) :: filename
+   integer           :: c,r,kk
+   integer           :: yr1,mo1,da1,hr1,mn1,ss1,doy1
+   integer           :: yr2,mo2,da2,hr2,mn2,ss2,doy2
+   real*8            :: time1,time2,timenow
+   real              :: gmt1,gmt2,ts1,ts2
+   integer           :: gid
 
-  integer           :: hr_int1,hr_int2
-  integer           :: movetime  ! Flag to move bookend2 files to bookend1
+   integer           :: hr_int1,hr_int2
+   integer           :: movetime  ! Flag to move bookend2 files to bookend1
 
 ! _________________________________________________________
 
-! Please note that the timing logic has been tested only for
-! these scenarios:
-!
-! startime of 2005-11-01T00:30:00 with time-step of 15mn
-! startime of 2005-11-01T00:00:00 with time-step of 30mn
-! startime of 2005-11-01T00:00:00 with time-step of 1hr
-! startime of 2005-11-02T00:00:00 with time-step of 15mn
+   ! Please note that the timing logic has been tested only for
+   ! these scenarios:
+   !
+   ! startime of 2005-11-01T00:30:00 with time-step of 15mn
+   ! startime of 2005-11-01T00:00:00 with time-step of 30mn
+   ! startime of 2005-11-01T00:00:00 with time-step of 1hr
+   ! startime of 2005-11-02T00:00:00 with time-step of 15mn
 
-  if (LIS_rc%nts(n).gt.3600) then   ! > 1-hr timestep
-     write(LIS_logunit,*)                                              &
-        '[ERR] When running LIS with NLDAS-3, the clock'
-     write(LIS_logunit,*)                                              &
-        '[ERR] should run with a timestep less than or'
-     write(LIS_logunit,*) '[ERR] equal to one hour.'
-     call LIS_endrun
-  endif
+   if (LIS_rc%nts(n).gt.3600) then   ! > 1-hr timestep
+      write(LIS_logunit,*)                                              &
+         '[ERR] When running LIS with NLDAS-3, the clock'
+      write(LIS_logunit,*)                                              &
+         '[ERR] should run with a timestep less than or'
+      write(LIS_logunit,*) '[ERR] equal to one hour.'
+      call LIS_endrun
+   endif
 
-  nldas30_struc(n)%findtime1 = 0
-  nldas30_struc(n)%findtime2 = 0
-  movetime = 0
+   nldas30_struc(n)%findtime1 = 0
+   nldas30_struc(n)%findtime2 = 0
+   movetime = 0
 
- ! Initialize ts1 and ts2 timepoints at beginning of run:
-  if ((LIS_get_nstep(LIS_rc,n).eq.1).or.(LIS_rc%rstflag(n).eq.1).or.   &
-       nldas30_struc(n)%reset_flag) then
-     nldas30_struc(n)%findtime1 = 1
-     nldas30_struc(n)%findtime2 = 1
-     LIS_rc%rstflag(n) = 0
-     nldas30_struc(n)%reset_flag = .false.
+   ! Initialize ts1 and ts2 timepoints at beginning of run:
+   if ((LIS_get_nstep(LIS_rc,n).eq.1).or.(LIS_rc%rstflag(n).eq.1).or.   &
+      nldas30_struc(n)%reset_flag) then
+      nldas30_struc(n)%findtime1 = 1
+      nldas30_struc(n)%findtime2 = 1
+      LIS_rc%rstflag(n) = 0
+      nldas30_struc(n)%reset_flag = .false.
 
-     yr1 = LIS_rc%yr
-     mo1 = LIS_rc%mo
-     da1 = LIS_rc%da
-     hr1 = 0
-     mn1 = 0
-     ss1 = 0
-     ! initialize ringtime to tomorrow at 00:00z
-     ts1 = 86400 ! 1 day
-     call LIS_tick(nldas30_struc(n)%ringtime,doy1,gmt1,                &
-                   yr1,mo1,da1,hr1,mn1,ss1,ts1)
-  endif
+      yr1 = LIS_rc%yr
+      mo1 = LIS_rc%mo
+      da1 = LIS_rc%da
+      hr1 = 0
+      mn1 = 0
+      ss1 = 0
+      ! initialize ringtime to tomorrow at 00:00z
+      ts1 = 86400 ! 1 day
+      call LIS_tick(nldas30_struc(n)%ringtime,doy1,gmt1,                &
+         yr1,mo1,da1,hr1,mn1,ss1,ts1)
+   endif
 
-!----------------------------------------------------------
-! Determine current time
-!----------------------------------------------------------
-  yr1 = LIS_rc%yr
-  mo1 = LIS_rc%mo
-  da1 = LIS_rc%da
-  hr1 = LIS_rc%hr
-  mn1 = LIS_rc%mn
-  ss1 = 0
-  call LIS_tick(timenow,doy1,gmt1,yr1,mo1,da1,hr1,mn1,ss1,0.0)
+   !----------------------------------------------------------
+   ! Determine current time
+   !----------------------------------------------------------
+   yr1 = LIS_rc%yr
+   mo1 = LIS_rc%mo
+   da1 = LIS_rc%da
+   hr1 = LIS_rc%hr
+   mn1 = LIS_rc%mn
+   ss1 = 0
+   call LIS_tick(timenow,doy1,gmt1,yr1,mo1,da1,hr1,mn1,ss1,0.0)
 
-! If current time >= time for when to move bookend values, 2 --> 1.
-  if (timenow.ge.nldas30_struc(n)%ringtime) then
-     nldas30_struc(n)%findtime2 = 1
-     if (nldas30_struc(n)%findtime1.eq.0) then
-        movetime = 1
-     endif
+   ! If current time >= time for when to move bookend values, 2 --> 1.
+   if (timenow.ge.nldas30_struc(n)%ringtime) then
+      nldas30_struc(n)%findtime2 = 1
+      if (nldas30_struc(n)%findtime1.eq.0) then
+         movetime = 1
+      endif
 
-     ! reset ringtime to tomorrow at 00:00z
-     yr1 = LIS_rc%yr
-     mo1 = LIS_rc%mo
-     da1 = LIS_rc%da
-     hr1 = 0
-     mn1 = 0
-     ss1 = 0
-     ts1 = 86400 ! 1 day
-     call LIS_tick(nldas30_struc(n)%ringtime,doy1,gmt1,                &
-                   yr1,mo1,da1,hr1,mn1,ss1,ts1)
-  endif
+      ! reset ringtime to tomorrow at 00:00z
+      yr1 = LIS_rc%yr
+      mo1 = LIS_rc%mo
+      da1 = LIS_rc%da
+      hr1 = 0
+      mn1 = 0
+      ss1 = 0
+      ts1 = 86400 ! 1 day
+      call LIS_tick(nldas30_struc(n)%ringtime,doy1,gmt1,                &
+         yr1,mo1,da1,hr1,mn1,ss1,ts1)
+   endif
 
-  if (nldas30_struc(n)%findtime1.eq.1) then
-     !----------------------------------------------------------
-     ! Determine NLDAS-3 Forcing 1 Time
-     !----------------------------------------------------------
-     yr1 = LIS_rc%yr
-     mo1 = LIS_rc%mo
-     da1 = LIS_rc%da
-     hr1 = LIS_rc%hr
-     mn1 = LIS_rc%mn
-     ss1 = 0
-     ts1 = 0
-     call LIS_tick(time1,doy1,gmt1,yr1,mo1,da1,hr1,mn1,ss1,ts1)
-  endif
+   if (nldas30_struc(n)%findtime1.eq.1) then
+      !----------------------------------------------------------
+      ! Determine NLDAS-3 Forcing 1 Time
+      !----------------------------------------------------------
+      yr1 = LIS_rc%yr
+      mo1 = LIS_rc%mo
+      da1 = LIS_rc%da
+      hr1 = LIS_rc%hr
+      mn1 = LIS_rc%mn
+      ss1 = 0
+      ts1 = 0
+      call LIS_tick(time1,doy1,gmt1,yr1,mo1,da1,hr1,mn1,ss1,ts1)
+   endif
 
-  if (nldas30_struc(n)%findtime2.eq.1) then
-     !----------------------------------------------------------
-     ! Determine NLDAS-3 Forcing 2 Time
-     !----------------------------------------------------------
-     yr2 = LIS_rc%yr
-     mo2 = LIS_rc%mo
-     da2 = LIS_rc%da
-     hr2 = LIS_rc%hr
-     mn2 = 0
-     ss2 = 0
+   if (nldas30_struc(n)%findtime2.eq.1) then
+      !----------------------------------------------------------
+      ! Determine NLDAS-3 Forcing 2 Time
+      !----------------------------------------------------------
+      yr2 = LIS_rc%yr
+      mo2 = LIS_rc%mo
+      da2 = LIS_rc%da
+      hr2 = LIS_rc%hr
+      mn2 = 0
+      ss2 = 0
 
-     if (nldas30_struc(n)%findtime1.eq.1) then
-        ! need tomorrow for bookend2
-        ts2 = 86400
-     endif
+      if (nldas30_struc(n)%findtime1.eq.1) then
+         ! need tomorrow for bookend2
+         ts2 = 86400
+      endif
 
-     call LIS_tick(time2,doy2,gmt2,yr2,mo2,da2,hr2,mn2,ss2,ts2)
-  endif
+      call LIS_tick(time2,doy2,gmt2,yr2,mo2,da2,hr2,mn2,ss2,ts2)
+   endif
 
-! Read NLDAS-3 - Bookend 1 files:
-  if (nldas30_struc(n)%findtime1.eq.1) then
-     order = 1
-     do kk = nldas30_struc(n)%st_iterid,nldas30_struc(n)%en_iterid
-        call nldas30files(n,kk,nldas30_struc(n)%nldas30dir,            &
-                          yr1,mo1,da1,filename)
+   ! Read NLDAS-3 - Bookend 1 files:
+   if (nldas30_struc(n)%findtime1.eq.1) then
+      order = 1
+      do kk = nldas30_struc(n)%st_iterid,nldas30_struc(n)%en_iterid
+         call nldas30files(n,kk,nldas30_struc(n)%nldas30dir,            &
+            yr1,mo1,da1,filename)
 
-        call read_nldas30(n,order,mo1,findex,filename,                 &
-                          nldas30_struc(n)%nldasforc1(kk,:,:,:),ferror)
-     enddo
-  endif
+         call read_nldas30(n,order,mo1,findex,filename,                 &
+            nldas30_struc(n)%nldasforc1(kk,:,:,:),ferror)
+      enddo
+   endif
 
-! Read NLDAS-3 - Bookend 2 files (next day - store values):
-  if (nldas30_struc(n)%findtime2.eq.1) then
-     ! Move bookend 2 files to bookend 1 timeframe:
-     if (movetime.eq.1) then
-        nldas30_struc(n)%nldasforc1 = nldas30_struc(n)%nldasforc2
-        nldas30_struc(n)%nldasforc2 = LIS_rc%udef
-     endif
+   ! Read NLDAS-3 - Bookend 2 files (next day - store values):
+   if (nldas30_struc(n)%findtime2.eq.1) then
+      ! Move bookend 2 files to bookend 1 timeframe:
+      if (movetime.eq.1) then
+         nldas30_struc(n)%nldasforc1 = nldas30_struc(n)%nldasforc2
+         nldas30_struc(n)%nldasforc2 = LIS_rc%udef
+      endif
 
-     order = 2
-     do kk = nldas30_struc(n)%st_iterid,nldas30_struc(n)%en_iterid
-        call nldas30files(n,kk,nldas30_struc(n)%nldas30dir,            &
-                          yr2,mo2,da2,filename)
+      order = 2
+      do kk = nldas30_struc(n)%st_iterid,nldas30_struc(n)%en_iterid
+         call nldas30files(n,kk,nldas30_struc(n)%nldas30dir,            &
+            yr2,mo2,da2,filename)
 
-        call read_nldas30(n,order,mo2,findex,filename,                 &
-                          nldas30_struc(n)%nldasforc2(kk,:,:,:),ferror)
-     enddo
-  endif
+         call read_nldas30(n,order,mo2,findex,filename,                 &
+            nldas30_struc(n)%nldasforc2(kk,:,:,:),ferror)
+      enddo
+   endif
 
-  if (timenow.ge.nldas30_struc(n)%nldas30time2) then
-     yr1 = LIS_rc%yr
-     mo1 = LIS_rc%mo
-     da1 = LIS_rc%da
-     hr1 = LIS_rc%hr
-     mn1 = 0
-     ss1 = 0
+   if (timenow.ge.nldas30_struc(n)%nldas30time2) then
+      yr1 = LIS_rc%yr
+      mo1 = LIS_rc%mo
+      da1 = LIS_rc%da
+      hr1 = LIS_rc%hr
+      mn1 = 0
+      ss1 = 0
 
-     yr2 = LIS_rc%yr
-     mo2 = LIS_rc%mo
-     da2 = LIS_rc%da
-     hr2 = LIS_rc%hr
-     mn2 = 0
-     ss2 = 0
+      yr2 = LIS_rc%yr
+      mo2 = LIS_rc%mo
+      da2 = LIS_rc%da
+      hr2 = LIS_rc%hr
+      mn2 = 0
+      ss2 = 0
 
-     ts1 = 0 + LIS_rc%ts
-     ts2 = 60*60 + LIS_rc%ts
+      ts1 = 0 + LIS_rc%ts
+      ts2 = 60*60 + LIS_rc%ts
 
-     call LIS_tick(time1,doy1,gmt1,yr1,mo1,da1,hr1,mn1,ss1,ts1)
-     call LIS_tick(time2,doy2,gmt2,yr2,mo2,da2,hr2,mn2,ss2,ts2)
+      call LIS_tick(time1,doy1,gmt1,yr1,mo1,da1,hr1,mn1,ss1,ts1)
+      call LIS_tick(time2,doy2,gmt2,yr2,mo2,da2,hr2,mn2,ss2,ts2)
 
-     if (LIS_rc%nts(n).eq.3600) then   ! == 1-hr timestep
-        if (LIS_rc%hr.eq.23) then
-           hr_int1 = 24
-           hr_int2 = 1
-        else
-           hr_int1 = hr1+1
-           hr_int2 = hr2+1
-        endif
-     else  ! Timesteps < 1 hour
-        if (LIS_rc%hr.eq.23) then
-           hr_int1 = 24
-           hr_int2 = 1
-        ! For all other hours (0-22Z):
-        else
-           hr_int1 = hr1+1
-           hr_int2 = hr2+1
-        endif
-     endif
+      if (LIS_rc%nts(n).eq.3600) then   ! == 1-hr timestep
+         if (LIS_rc%hr.eq.23) then
+            hr_int1 = 24
+            hr_int2 = 1
+         else
+            hr_int1 = hr1+1
+            hr_int2 = hr2+1
+         endif
+      else  ! Timesteps < 1 hour
+         if (LIS_rc%hr.eq.23) then
+            hr_int1 = 24
+            hr_int2 = 1
+         ! For all other hours (0-22Z):
+         else
+            hr_int1 = hr1+1
+            hr_int2 = hr2+1
+         endif
+      endif
 
-! Assign NLDAS-3 forcing fields to two LIS time-interp placeholders (metdata1,2):
-     do r = 1,LIS_rc%lnr(n)
-        do c = 1,LIS_rc%lnc(n)
-           if (LIS_domain(n)%gindex(c,r).ne.-1) then
-              nldas30_struc(n)%metdata1(:,:,LIS_domain(n)%gindex(c,r)) = &
-                      nldas30_struc(n)%nldasforc1(:,:,hr_int1,&  ! Store hour: Current hour (same day)
-                      (c+(r-1)*LIS_rc%lnc(n)))
-              nldas30_struc(n)%metdata2(:,:,LIS_domain(n)%gindex(c,r)) = &
-                      nldas30_struc(n)%nldasforc1(:,:,hr_int2,&  ! Store hour:  next hour (same day)
-                      (c+(r-1)*LIS_rc%lnc(n)))
-           endif
-        enddo
-     enddo
+      ! Assign NLDAS-3 forcing fields to two LIS time-interp placeholders (metdata1,2):
+      do r = 1,LIS_rc%lnr(n)
+         do c = 1,LIS_rc%lnc(n)
+            if (LIS_domain(n)%gindex(c,r).ne.-1) then
+               nldas30_struc(n)%metdata1(:,:,LIS_domain(n)%gindex(c,r)) = &
+                  nldas30_struc(n)%nldasforc1(:,:,hr_int1,&  ! Store hour: Current hour (same day)
+                  (c+(r-1)*LIS_rc%lnc(n)))
+               nldas30_struc(n)%metdata2(:,:,LIS_domain(n)%gindex(c,r)) = &
+                  nldas30_struc(n)%nldasforc1(:,:,hr_int2,&  ! Store hour:  next hour (same day)
+                  (c+(r-1)*LIS_rc%lnc(n)))
+            endif
+         enddo
+      enddo
 
-! Assign the hourly times:
-     nldas30_struc(n)%nldas30time2 = time2
-     nldas30_struc(n)%nldas30time1 = time1
+      ! Assign the hourly times:
+      nldas30_struc(n)%nldas30time2 = time2
+      nldas30_struc(n)%nldas30time1 = time1
 
-  endif
+   endif
 
 end subroutine get_nldas30
 
@@ -376,17 +376,17 @@ end subroutine get_nldas30
 subroutine nldas30files(n,kk,nldas30dir,yr,mo,da,filename)
 
 ! !USES:
-  use LIS_coreMod
-  use LIS_logMod
-  use LIS_timeMgrMod
+   use LIS_coreMod
+   use LIS_logMod
+   use LIS_timeMgrMod
 
-  implicit none
+   implicit none
 ! !ARGUMENTS:
-  integer                       :: n
-  integer                       :: kk
-  character(len=*), intent(in)  :: nldas30dir
-  integer, intent(in)           :: yr,mo,da
-  character(len=*), intent(out) :: filename
+   integer                       :: n
+   integer                       :: kk
+   character(len=*), intent(in)  :: nldas30dir
+   integer, intent(in)           :: yr,mo,da
+   character(len=*), intent(out) :: filename
 
 ! !DESCRIPTION:
 !   This subroutine puts together the daily netCDF NLDAS-3 file name.
@@ -407,19 +407,18 @@ subroutine nldas30files(n,kk,nldas30dir,yr,mo,da,filename)
 !
 !EOP
 
-  character*4 :: cyear
-  character*2 :: cmonth
-  character*8 :: cdate
-  character*7 :: dir
+   character*4 :: cyear
+   character*2 :: cmonth
+   character*8 :: cdate
+   character*7 :: dir
 
-  write(unit=cyear, fmt='(i4.4)') yr
-  write(unit=cmonth,fmt='(i2.2)') mo
-  write(unit=cdate, fmt='(i4.4,i2.2,i2.2)') yr,mo,da
+   write(unit=cyear, fmt='(i4.4)') yr
+   write(unit=cmonth,fmt='(i2.2)') mo
+   write(unit=cdate, fmt='(i4.4,i2.2,i2.2)') yr,mo,da
 
-  dir = '/'//cyear//cmonth
+   dir = '/'//cyear//cmonth
 
-  filename = trim(nldas30dir)//dir//'/NLDAS_FOR0010_H.A'//cdate//      &
-                                    '.030.beta.nc'
+   filename = trim(nldas30dir)//dir//'/NLDAS_FOR0010_H.A'//cdate//      &
+      '.030.beta.nc'
 
 end subroutine nldas30files
-
