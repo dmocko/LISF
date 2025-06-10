@@ -73,26 +73,18 @@ subroutine timeinterp_nldas30(n,findex)
    bmo = LIS_rc%mo
    bda = LIS_rc%da
    bhr = LIS_rc%hr
-   bmn = 30
+   bmn = 0
    bss = 0
-   if (LIS_rc%mn.lt.30) then
-      bts = -(60*60)
-   else
-      bts = 0
-   endif
+   bts = 0
    call LIS_tick(btime,bdoy,gmt1,byr,bmo,bda,bhr,bmn,bss,bts)
    btime = nldas30_struc(n)%nldas30time2
    byr = LIS_rc%yr    !next hour
    bmo = LIS_rc%mo
    bda = LIS_rc%da
    bhr = LIS_rc%hr
-   bmn = 30
+   bmn = 0
    bss = 0
-   if (LIS_rc%mn.lt.30) then
-      bts = 0
-   else
-      bts = 60*60
-   endif
+   bts = 60*60
    call LIS_tick(btime,bdoy,gmt2,byr,bmo,bda,bhr,bmn,bss,bts)
 
    !-----------------------------------------------------------------------
