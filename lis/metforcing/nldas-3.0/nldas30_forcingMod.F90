@@ -62,59 +62,59 @@ module nldas30_forcingMod
 !  \end{description}
 !
 ! !USES:
-  use LIS_constantsMod, only : LIS_CONST_PATH_LEN
-  use bounding_box_mod
+   use LIS_constantsMod, only : LIS_CONST_PATH_LEN
+   use bounding_box_mod
 
-  implicit none
+   implicit none
 
-  PRIVATE
+   PRIVATE
 !-----------------------------------------------------------------------------
 ! !PUBLIC MEMBER FUNCTIONS:
 !-----------------------------------------------------------------------------
-  public :: init_nldas30      !defines the native resolution of the input data
+   public :: init_nldas30 !defines the native resolution of the input data
 !-----------------------------------------------------------------------------
 ! !PUBLIC TYPES:
 !-----------------------------------------------------------------------------
-  public :: nldas30_struc
+   public :: nldas30_struc
 
 !EOP
-  type, public ::  nldas30_type_dec
-     real         :: ts
-     integer      :: ncold,nrold
-     character(len=LIS_CONST_PATH_LEN) :: nldas30dir   ! NLDAS-3 Forcing Directory
-     real*8       :: nldas30time1,nldas30time2
-     logical      :: reset_flag
+   type, public ::  nldas30_type_dec
+      real         :: ts
+      integer      :: ncold,nrold
+      character(len=LIS_CONST_PATH_LEN) :: nldas30dir ! NLDAS-3 Forcing Directory
+      real*8       :: nldas30time1,nldas30time2
+      logical      :: reset_flag
 
-     integer                :: mi
-     integer, allocatable   :: n111(:)
-     integer, allocatable   :: n121(:)
-     integer, allocatable   :: n211(:)
-     integer, allocatable   :: n221(:)
-     real, allocatable      :: w111(:),w121(:)
-     real, allocatable      :: w211(:),w221(:)
+      integer                :: mi
+      integer, allocatable   :: n111(:)
+      integer, allocatable   :: n121(:)
+      integer, allocatable   :: n211(:)
+      integer, allocatable   :: n221(:)
+      real, allocatable      :: w111(:),w121(:)
+      real, allocatable      :: w211(:),w221(:)
 
-     integer, allocatable   :: n112(:,:)
-     integer, allocatable   :: n122(:,:)
-     integer, allocatable   :: n212(:,:)
-     integer, allocatable   :: n222(:,:)
-     real, allocatable      :: w112(:,:),w122(:,:)
-     real, allocatable      :: w212(:,:),w222(:,:)
-     integer, allocatable   :: n113(:)
-     integer                :: findtime1,findtime2
-     logical                :: startFlag,dayFlag
-     real, allocatable      :: nldasforc1(:,:,:,:),nldasforc2(:,:,:,:)
+      integer, allocatable   :: n112(:,:)
+      integer, allocatable   :: n122(:,:)
+      integer, allocatable   :: n212(:,:)
+      integer, allocatable   :: n222(:,:)
+      real, allocatable      :: w112(:,:),w122(:,:)
+      real, allocatable      :: w212(:,:),w222(:,:)
+      integer, allocatable   :: n113(:)
+      integer                :: findtime1,findtime2
+      logical                :: startFlag,dayFlag
+      real, allocatable      :: nldasforc1(:,:,:,:),nldasforc2(:,:,:,:)
 
-     integer           :: nvars
-     real*8            :: ringtime
-     integer           :: nIter,st_iterid,en_iterid
+      integer           :: nvars
+      real*8            :: ringtime
+      integer           :: nIter,st_iterid,en_iterid
 
-     real, allocatable :: metdata1(:,:,:)
-     real, allocatable :: metdata2(:,:,:)
+      real, allocatable :: metdata1(:,:,:)
+      real, allocatable :: metdata2(:,:,:)
 
-     type(bounding_box_type) :: bb
-  end type nldas30_type_dec
+      type(bounding_box_type) :: bb
+   end type nldas30_type_dec
 
-  type(nldas30_type_dec), allocatable :: nldas30_struc(:)
+   type(nldas30_type_dec), allocatable :: nldas30_struc(:)
 
 contains
 
@@ -126,7 +126,7 @@ contains
 ! !REVISION HISTORY:
 ! 16 May 2025: David Mocko, Initial Specification
 !                           (derived from init_merra2.F90)
-! 04 Jun 2025: James Geiger, add support read subsets of NLDAS-3 domain
+! 04 Jun 2025: James Geiger, add support to read subsets of NLDAS-3 domain
 !
 ! !INTERFACE:
 subroutine init_nldas30(findex)
@@ -156,59 +156,66 @@ subroutine init_nldas30(findex)
 !    computes the neighbor, weights for conservative interpolation
 !  \end{description}
 !EOP
-   real :: gridDesci(LIS_rc%nnest,50)
+   real :: gridDesci(50)
    integer :: n
    real, allocatable, dimension(:) :: nldas30_lon, nldas30_lat
    type(bounding_box_type) :: bb
 
-   allocate(nldas30_struc(LIS_rc%nnest))
-
-   do n = 1,LIS_rc%nnest
-      nldas30_struc(n)%ncold = 11700
-      nldas30_struc(n)%nrold = 6500
-      nldas30_struc(n)%mi = nldas30_struc(n)%ncold*nldas30_struc(n)%nrold
-   enddo
-
-   call readcrd_nldas30
    LIS_rc%met_nf(findex) = 8
 
-   nldas30_struc%reset_flag = .false.
+   allocate(nldas30_struc(LIS_rc%nnest))
 
+   call readcrd_nldas30
+
+   nldas30_struc(:)%ncold = 11700
+   nldas30_struc(:)%nrold = 6500
+   ! ncold and nrold are independent of nest
+   nldas30_struc(:)%mi = nldas30_struc(1)%ncold*nldas30_struc(1)%nrold
+
+   nldas30_struc(:)%reset_flag = .false.
+   nldas30_struc(:)%startFlag = .true.
+   nldas30_struc(:)%dayFlag = .true.
+   nldas30_struc(:)%nvars = 8
+   nldas30_struc(:)%st_iterid = 1
+   nldas30_struc(:)%en_iterId = 1
+   nldas30_struc(:)%nIter = 1
+
+   nldas30_struc(:)%ts = 3600
    do n = 1,LIS_rc%nnest
-      nldas30_struc(n)%ts = 3600
       call LIS_update_timestep(LIS_rc,n,nldas30_struc(n)%ts)
    enddo
 
    ! NLDAS-3 domain grid description
    ! ncold and nrold are independent of nest
    gridDesci = 0
-   gridDesci(:,1)  = 0
-   gridDesci(:,2)  = nldas30_struc(1)%ncold
-   gridDesci(:,3)  = nldas30_struc(1)%nrold
-   gridDesci(:,4)  =    7.005
-   gridDesci(:,5)  = -168.995
-   gridDesci(:,6)  = 128
-   gridDesci(:,7)  =   71.995
-   gridDesci(:,8)  =  -52.005
-   gridDesci(:,9)  =    0.01
-   gridDesci(:,10) =    0.01
-   gridDesci(:,20) = 0
+   gridDesci(1)  = 0
+   gridDesci(2)  = nldas30_struc(1)%ncold
+   gridDesci(3)  = nldas30_struc(1)%nrold
+   gridDesci(4)  =    7.005
+   gridDesci(5)  = -168.995
+   gridDesci(6)  = 128
+   gridDesci(7)  =   71.995
+   gridDesci(8)  =  -52.005
+   gridDesci(9)  =    0.01
+   gridDesci(10) =    0.01
+   gridDesci(20) = 0
 
    ! ncold and nrold are independent of nest
    allocate(nldas30_lon(nldas30_struc(1)%ncold))
    allocate(nldas30_lat(nldas30_struc(1)%nrold))
 
-   call nldas30_earth_coords(gridDesci(1,:), nldas30_lon, nldas30_lat)
+   call nldas30_earth_coords(gridDesci, nldas30_lon, nldas30_lat)
 
    do n = 1,LIS_rc%nnest
+      ! ncold and nrold are independent of nest
       bb = find_bounding_box(nldas30_struc(1)%ncold, nldas30_struc(1)%nrold, nldas30_lat, nldas30_lon, minval(LIS_domain(n)%lat), maxval(LIS_domain(n)%lat), minval(LIS_domain(n)%lon), maxval(LIS_domain(n)%lon))
 
-      gridDesci(n,2)  = bb%NLON
-      gridDesci(n,3)  = bb%NLAT
-      gridDesci(n,4)  = nldas30_lat(bb%i_llat)
-      gridDesci(n,5)  = nldas30_lon(bb%i_llon)
-      gridDesci(n,7)  = nldas30_lat(bb%i_ulat)
-      gridDesci(n,8)  = nldas30_lon(bb%i_ulon)
+      gridDesci(2)  = bb%NLON
+      gridDesci(3)  = bb%NLAT
+      gridDesci(4)  = nldas30_lat(bb%i_llat)
+      gridDesci(5)  = nldas30_lon(bb%i_llon)
+      gridDesci(7)  = nldas30_lat(bb%i_ulat)
+      gridDesci(8)  = nldas30_lon(bb%i_ulon)
 
       nldas30_struc(n)%bb = bb
 
@@ -222,7 +229,7 @@ subroutine init_nldas30(findex)
          allocate(nldas30_struc(n)%w121(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%w211(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%w221(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
-         call bilinear_interp_input(n,gridDesci(n,:),                  &
+         call bilinear_interp_input(n,gridDesci,            &
             nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
             nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
             nldas30_struc(n)%w111,nldas30_struc(n)%w121,    &
@@ -237,7 +244,7 @@ subroutine init_nldas30(findex)
          allocate(nldas30_struc(n)%w121(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%w211(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%w221(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
-         call bilinear_interp_input(n,gridDesci(n,:),                  &
+         call bilinear_interp_input(n,gridDesci,            &
             nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
             nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
             nldas30_struc(n)%w111,nldas30_struc(n)%w121,    &
@@ -251,7 +258,7 @@ subroutine init_nldas30(findex)
          allocate(nldas30_struc(n)%w122(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
          allocate(nldas30_struc(n)%w212(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
          allocate(nldas30_struc(n)%w222(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
-         call conserv_interp_input(n,gridDesci(n,:),                   &
+         call conserv_interp_input(n,gridDesci,              &
             nldas30_struc(n)%n112,nldas30_struc(n)%n122,     &
             nldas30_struc(n)%n212,nldas30_struc(n)%n222,     &
             nldas30_struc(n)%w112,nldas30_struc(n)%w122,     &
@@ -259,7 +266,7 @@ subroutine init_nldas30(findex)
 
       elseif (trim(LIS_rc%met_interp(findex)).eq."neighbor") then
          allocate(nldas30_struc(n)%n113(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
-         call neighbor_interp_input(n,gridDesci(n,:),nldas30_struc(n)%n113)
+         call neighbor_interp_input(n,gridDesci,nldas30_struc(n)%n113)
 
       else
          write(LIS_logunit,*) '[ERR] Interpolation option '//           &
@@ -268,20 +275,10 @@ subroutine init_nldas30(findex)
          call LIS_endrun
       endif
 
-      call LIS_registerAlarm("NLDAS-3 forcing alarm",86400.0,86400.0)
-      nldas30_struc(n)%startFlag = .true.
-      nldas30_struc(n)%dayFlag = .true.
-
-      nldas30_struc(n)%nvars = 8
-
       allocate(nldas30_struc(n)%nldasforc1(1,nldas30_struc(n)%nvars,24, &
          LIS_rc%lnc(n)*LIS_rc%lnr(n)))
       allocate(nldas30_struc(n)%nldasforc2(1,nldas30_struc(n)%nvars,24, &
          LIS_rc%lnc(n)*LIS_rc%lnr(n)))
-
-      nldas30_struc(n)%st_iterid = 1
-      nldas30_struc(n)%en_iterId = 1
-      nldas30_struc(n)%nIter = 1
 
       allocate(nldas30_struc(n)%metdata1(1,LIS_rc%met_nf(findex),       &
          LIS_rc%ngrid(n)))
@@ -293,13 +290,11 @@ subroutine init_nldas30(findex)
 
       nldas30_struc(n)%nldasforc1 = LIS_rc%udef
       nldas30_struc(n)%nldasforc2 = LIS_rc%udef
-
    enddo
 
    deallocate(nldas30_lon)
    deallocate(nldas30_lat)
 end subroutine init_nldas30
-
 
 !BOP
 !
