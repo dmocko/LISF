@@ -321,8 +321,8 @@ subroutine get_nldas30(n,findex)
      mn2 = 0
      ss2 = 0
 
-     ts1 = 0
-     ts2 = 60*60
+     ts1 = 0 + LIS_rc%ts
+     ts2 = 60*60 + LIS_rc%ts
 
      call LIS_tick(time1,doy1,gmt1,yr1,mo1,da1,hr1,mn1,ss1,ts1)
      call LIS_tick(time2,doy2,gmt2,yr2,mo2,da2,hr2,mn2,ss2,ts2)
