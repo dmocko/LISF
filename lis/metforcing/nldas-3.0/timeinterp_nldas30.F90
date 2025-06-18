@@ -164,6 +164,10 @@ subroutine timeinterp_nldas30(n,findex)
 
          kk = LIS_get_iteration_index(n,k,index1,mfactor)
 
+!<debug -- overwrite zterp weights; use wt1 and wt2>
+         zw1 = wt1
+         zw2 = wt2
+!</debug -- overwrite zterp weights; use wt1 and wt2>
          if ((nldas30_struc(n)%metdata1(kk,3,index1).ne.LIS_rc%udef).and.&
             (nldas30_struc(n)%metdata2(kk,3,index1).ne.LIS_rc%udef)) then
             swd(t) = (nldas30_struc(n)%metdata1(kk,3,index1) * zw1) +   &
