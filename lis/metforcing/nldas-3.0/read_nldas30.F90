@@ -82,11 +82,8 @@ subroutine read_nldas30(n,order,month,findex,filename,nldasforc,ferror)
 
    integer   :: ftn
    integer   :: tmpId,qId,uId,vId,psId,rainfId,swdnId,lwdnId
-   integer   :: nr_index,nc_index
    logical   :: file_exists
-   integer   :: c,r,t,iret
    integer   :: mo
-   logical   :: read_lnd
 
    real      :: tair(nldas30_struc(n)%bb%NLON,nldas30_struc(n)%bb%NLAT,24)
    real      :: qair(nldas30_struc(n)%bb%NLON,nldas30_struc(n)%bb%NLAT,24)
@@ -187,7 +184,6 @@ end subroutine read_nldas30
 ! \label{interp_nldas30_var}
 !
 ! !INTERFACE:
-#if 1
 subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
    pcp_flag,nldasforc)
 
@@ -279,81 +275,3 @@ subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
    enddo
 
 end subroutine interp_nldas30_var
-#endif
-#if 0
-! NOOP spatial interpolation scheme.  Simply assign the
-! input_var values into the nldasforc array.
-subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
-   pcp_flag,nldasforc)
-
-! !USES:
-   use LIS_coreMod
-   use LIS_logMod
-   use LIS_spatialDownscalingMod
-   use nldas30_forcingMod, only : nldas30_struc
-#if(defined USE_NETCDF3 || defined USE_NETCDF4)
-   use netcdf
-#endif
-   implicit none
-
-! !ARGUMENTS:
-   integer, intent(in)    :: n
-   integer, intent(in)    :: findex
-   integer, intent(in)    :: month
-   real,    intent(in)    :: input_var(LIS_rc%lnc(n), LIS_rc%lnr(n),24)
-   integer, intent(in)    :: var_index
-   logical, intent(in)    :: pcp_flag
-   real,    intent(inout) :: nldasforc(nldas30_struc(n)%nvars,24, &
-      LIS_rc%lnc(n)*LIS_rc%lnr(n))
-
-! !DESCRIPTION:
-!  This subroutine spatially interpolates a NLDAS-3 field
-!  to the LIS running domain
-!
-!EOP
-   integer   :: t,c,r,k,iret
-   integer   :: doy
-   integer   :: ftn
-   integer   :: pcp1Id,pcp2Id,pcp3Id,pcp4Id,pcp5Id,pcp6Id
-   real      :: f (LIS_rc%lnc(n)*LIS_rc%lnr(n))
-   logical*1 :: lb(LIS_rc%lnc(n)*LIS_rc%lnr(n))
-   logical*1 :: lo(LIS_rc%lnc(n)*LIS_rc%lnr(n))
-   integer   :: input_size
-   logical   :: scal_read_flag
-! _____________________________________________________________
-
-!<debug -- jim testing>
-logical :: first = .true.
-!</debug -- jim testing>
-   input_size = LIS_rc%lnc(n)*LIS_rc%lnr(n)
-
-   do t = 1,24
-      lb = .true.
-      do r = 1, LIS_rc%lnr(n) !nldas30_struc(n)%nrold
-         do c = 1, LIS_rc%lnc(n) !nldas30_struc(n)%ncold
-            k = c+(r-1)*LIS_rc%lnc(n) !nldas30_struc(n)%ncold
-            f(k) = input_var(c,r,t)
-            if (f(k).eq.1.e+15) then
-!<debug -- jim testing>
-write(unit=LIS_logunit,fmt=*) 'GREP: Should not be here.'
-!</debug -- jim testing>
-               f(k)  = LIS_rc%udef
-               lb(k) = .false.
-            endif
-            if (f(k).eq.-9999.0) then
-!<debug -- jim testing>
-if ( first ) then
-write(unit=LIS_logunit,fmt=*) 'GREP: This is expected.'
-first = .false.
-endif
-!</debug -- jim testing>
-               f(k)  = LIS_rc%udef
-               lb(k) = .false.
-            endif
-         enddo
-      enddo
-      nldasforc(var_index,t,:) = f(:)
-   enddo
-
-end subroutine interp_nldas30_var
-#endif
