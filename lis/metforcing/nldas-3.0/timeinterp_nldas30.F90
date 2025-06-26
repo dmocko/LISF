@@ -16,17 +16,14 @@
 !                           (derived from timeinterp_merra2.F90)
 !
 ! !INTERFACE:
-
-#if 1
 subroutine timeinterp_nldas30(n,findex)
 
 ! !USES:
    use ESMF
    use LIS_FORC_AttributesMod
-   use LIS_coreMod,          only : LIS_rc,LIS_domain, LIS_localPet
-   use LIS_metforcingMod,    only : LIS_forc,LIS_FORC_Base_State
+   use LIS_coreMod,          only : LIS_rc,LIS_domain,LIS_localPet
+   use LIS_metforcingMod,    only : LIS_FORC_Base_State
    use LIS_constantsMod,     only : LIS_CONST_SOLAR
-   use LIS_timeMgrMod,       only : LIS_tick
    use LIS_logMod,           only : LIS_logunit,LIS_verify,LIS_endrun
    use LIS_forecastMod,      only : LIS_get_iteration_index
    use nldas30_forcingMod,   only : nldas30_struc
@@ -53,39 +50,15 @@ subroutine timeinterp_nldas30(n,findex)
 !    zenith-angle based interpolation
 !  \end{description}
 !EOP
-   integer :: t,zdoy,k,kk
+   integer :: t,k,kk
    integer :: index1
-   integer :: bdoy,byr,bmo
-   integer :: bda,bhr,bmn
-   integer :: bss
-   real*8  :: btime
-   real    :: wt1,wt2,czb,cze,czm,gmt1,gmt2
-   real    :: zw1,zw2,bts
+   real    :: wt1,wt2
    integer            :: status
    integer            :: mfactor,m
    type(ESMF_Field)   :: tmpField,q2Field,uField,vField
    type(ESMF_Field)   :: psurfField,pcpField,swdField,lwdField
    real,pointer       :: tmp(:),q2(:),uwind(:),vwind(:)
    real,pointer       :: swd(:),lwd(:),psurf(:),pcp(:)
-
-   btime = nldas30_struc(n)%nldas30time1
-   byr = LIS_rc%yr
-   bmo = LIS_rc%mo
-   bda = LIS_rc%da
-   bhr = LIS_rc%hr
-   bmn = 0
-   bss = 0
-   bts = 0
-   call LIS_tick(btime,bdoy,gmt1,byr,bmo,bda,bhr,bmn,bss,bts)
-   btime = nldas30_struc(n)%nldas30time2
-   byr = LIS_rc%yr    !next hour
-   bmo = LIS_rc%mo
-   bda = LIS_rc%da
-   bhr = LIS_rc%hr
-   bmn = 0
-   bss = 0
-   bts = 60*60
-   call LIS_tick(btime,bdoy,gmt2,byr,bmo,bda,bhr,bmn,bss,bts)
 
    !-----------------------------------------------------------------------
    !  Interpolate Data in Time
@@ -157,21 +130,11 @@ subroutine timeinterp_nldas30(n,findex)
       do m = 1,mfactor
          t = m + (k-1)*mfactor
          index1 = LIS_domain(n)%tile(t)%index
-         zdoy = LIS_rc%doy
-         call zterp(1,LIS_domain(n)%grid(index1)%lat,           &
-            LIS_domain(n)%grid(index1)%lon,                     &
-            gmt1,gmt2,LIS_rc%gmt,zdoy,zw1,zw2,czb,cze,czm,LIS_rc)
-
          kk = LIS_get_iteration_index(n,k,index1,mfactor)
-
-!<debug -- overwrite zterp weights; use wt1 and wt2>
-         zw1 = wt1
-         zw2 = wt2
-!</debug -- overwrite zterp weights; use wt1 and wt2>
          if ((nldas30_struc(n)%metdata1(kk,3,index1).ne.LIS_rc%udef).and.&
             (nldas30_struc(n)%metdata2(kk,3,index1).ne.LIS_rc%udef)) then
-            swd(t) = (nldas30_struc(n)%metdata1(kk,3,index1) * zw1) +   &
-               (nldas30_struc(n)%metdata2(kk,3,index1) * zw2)
+            swd(t) = (nldas30_struc(n)%metdata1(kk,3,index1) * wt1) +   &
+               (nldas30_struc(n)%metdata2(kk,3,index1) * wt2)
             if (swd(t).gt.LIS_CONST_SOLAR) then
                write(unit=LIS_logunit,fmt=*)                            &
                   '[WARN] sw radiation too high!!'
@@ -180,7 +143,7 @@ subroutine timeinterp_nldas30(n,findex)
                   nldas30_struc(n)%metdata1(kk,3,index1)
                write(unit=LIS_logunit,fmt=*) '[WARN] nldas30data2 = ',  &
                   nldas30_struc(n)%metdata2(kk,3,index1)
-               write(unit=LIS_logunit,fmt=*) '[WARN] zw1=',zw1,'zw2=',zw2
+               write(unit=LIS_logunit,fmt=*) '[WARN] wt1=',wt1,'wt2=',wt2
                swd(t) = LIS_CONST_SOLAR
                write(unit=LIS_logunit,fmt=*) '[WARN] forcing set to ',swd(t)
             endif
@@ -256,182 +219,3 @@ subroutine timeinterp_nldas30(n,findex)
    enddo
 
 end subroutine timeinterp_nldas30
-#endif
-
-#if 0
-subroutine timeinterp_nldas30(n,findex)
-
-   ! !USES:
-   use ESMF
-   use LIS_FORC_AttributesMod
-   use LIS_coreMod,          only : LIS_rc,LIS_domain, LIS_localPet
-   use LIS_metforcingMod,    only : LIS_forc,LIS_FORC_Base_State
-   use LIS_constantsMod,     only : LIS_CONST_SOLAR
-   use LIS_timeMgrMod,       only : LIS_tick
-   use LIS_logMod,           only : LIS_logunit,LIS_verify,LIS_endrun
-   use LIS_forecastMod,      only : LIS_get_iteration_index
-   use nldas30_forcingMod,   only : nldas30_struc
-
-   implicit none
-
-   ! !ARGUMENTS:
-   integer, intent(in):: n
-   integer, intent(in):: findex
-   !
-   ! !DESCRIPTION:
-   !  Temporally interpolates the forcing data to the current model
-   !  timestep. Downward shortwave radiation is interpolated using a
-   !  zenith-angled based approach. Precipitation and longwave radiation
-   !  are not temporally interpolated, and the previous 1 hourly value
-   !  is used. All other variables are linearly interpolated between
-   !  the 1 hourly blocks.
-   !
-   !  The routines invoked are:
-   !  \begin{description}
-   !   \item[LIS\_time2date](\ref{LIS_time2date}) \newline
-   !    converts the time to a date format
-   !   \item[zterp](\ref{zterp}) \newline
-   !    zenith-angle based interpolation
-   !  \end{description}
-   !EOP
-   integer :: t,zdoy,k,kk
-   integer :: index1
-   integer :: bdoy,byr,bmo
-   integer :: bda,bhr,bmn
-   integer :: bss
-   real*8  :: btime
-   real    :: wt1,wt2,czb,cze,czm,gmt1,gmt2
-   real    :: zw1,zw2,bts
-   integer            :: status
-   integer            :: mfactor,m
-   type(ESMF_Field)   :: tmpField,q2Field,uField,vField
-   type(ESMF_Field)   :: psurfField,pcpField,swdField,lwdField
-   real,pointer       :: tmp(:),q2(:),uwind(:),vwind(:)
-   real,pointer       :: swd(:),lwd(:),psurf(:),pcp(:)
-
-   call ESMF_StateGet(LIS_FORC_Base_State(n,findex),LIS_FORC_Tair%varname(1),tmpField,&
-      rc=status)
-   call LIS_verify(status, 'Error: Enable Tair in the forcing variables list')
-
-   call ESMF_StateGet(LIS_FORC_Base_State(n,findex),LIS_FORC_Qair%varname(1),q2Field,&
-      rc=status)
-   call LIS_verify(status, 'Error: Enable Qair in the forcing variables list')
-
-   call ESMF_StateGet(LIS_FORC_Base_State(n,findex),LIS_FORC_SWdown%varname(1),swdField,&
-      rc=status)
-   call LIS_verify(status, 'Error: Enable SWdown in the forcing variables list')
-
-   call ESMF_StateGet(LIS_FORC_Base_State(n,findex),LIS_FORC_LWdown%varname(1),lwdField,&
-      rc=status)
-   call LIS_verify(status, 'Error: Enable LWdown in the forcing variables list')
-
-   call ESMF_StateGet(LIS_FORC_Base_State(n,findex),LIS_FORC_Wind_E%varname(1),uField,&
-      rc=status)
-   call LIS_verify(status, 'Error: Enable Wind_E in the forcing variables list')
-
-   call ESMF_StateGet(LIS_FORC_Base_State(n,findex),LIS_FORC_Wind_N%varname(1),vField,&
-      rc=status)
-   call LIS_verify(status, 'Error: Enable Wind_N in the forcing variables list')
-
-   call ESMF_StateGet(LIS_FORC_Base_State(n,findex),LIS_FORC_Psurf%varname(1),psurfField,&
-      rc=status)
-   call LIS_verify(status, 'Error: Enable Psurf in the forcing variables list')
-
-   call ESMF_StateGet(LIS_FORC_Base_State(n,findex),LIS_FORC_Rainf%varname(1),pcpField,&
-      rc=status)
-   call LIS_verify(status, 'Error: Enable Rainf in the forcing variables list')
-
-   call ESMF_FieldGet(tmpField,localDE=0,farrayPtr=tmp,rc=status)
-   call LIS_verify(status)
-
-   call ESMF_FieldGet(q2Field,localDE=0,farrayPtr=q2,rc=status)
-   call LIS_verify(status)
-
-   call ESMF_FieldGet(swdField,localDE=0,farrayPtr=swd,rc=status)
-   call LIS_verify(status)
-
-   call ESMF_FieldGet(lwdField,localDE=0,farrayPtr=lwd,rc=status)
-   call LIS_verify(status)
-
-   call ESMF_FieldGet(uField,localDE=0,farrayPtr=uwind,rc=status)
-   call LIS_verify(status)
-
-   call ESMF_FieldGet(vField,localDE=0,farrayPtr=vwind,rc=status)
-   call LIS_verify(status)
-
-   call ESMF_FieldGet(psurfField,localDE=0,farrayPtr=psurf,rc=status)
-   call LIS_verify(status)
-
-   call ESMF_FieldGet(pcpField,localDE=0,farrayPtr=pcp,rc=status)
-   call LIS_verify(status)
-
-   mfactor = LIS_rc%nensem(n) / nldas30_struc(n)%nIter
-
-   swd(:) = nldas30_struc(n)%metdata1(1,3,:)
-   #if 0
-   do k = 1,LIS_rc%ntiles(n)/mfactor
-      do m = 1,mfactor
-         t = m + (k-1)*mfactor
-         index1 = LIS_domain(n)%tile(t)%index
-         kk = LIS_get_iteration_index(n,k,index1,mfactor)
-         swd(t) = nldas30_struc(n)%metdata1(kk,3,index1)
-      enddo
-   enddo
-   #endif
-
-   !-----------------------------------------------------------------------
-   ! precip variable - constant rate over the NLDAS-3 hour
-   !-----------------------------------------------------------------------
-   pcp(:) = nldas30_struc(n)%metdata1(1,8,:)
-   #if 0
-   do k = 1,LIS_rc%ntiles(n)/mfactor
-      do m = 1,mfactor
-         t = m + (k-1)*mfactor
-         index1 = LIS_domain(n)%tile(t)%index
-         kk = LIS_get_iteration_index(n,k,index1,mfactor)
-         pcp(t) = nldas30_struc(n)%metdata1(kk,8,index1)
-      enddo
-   enddo
-   #endif
-
-   !-----------------------------------------------------------------------
-   ! LW down
-   !-----------------------------------------------------------------------
-   lwd(:) = nldas30_struc(n)%metdata1(1,4,:)
-   #if 0
-   do k = 1,LIS_rc%ntiles(n)/mfactor
-      do m = 1,mfactor
-         t = m + (k-1)*mfactor
-         index1 = LIS_domain(n)%tile(t)%index
-         kk = LIS_get_iteration_index(n,k,index1,mfactor)
-         lwd(t) = nldas30_struc(n)%metdata1(kk,4,index1)
-      enddo
-   enddo
-   #endif
-
-   !-----------------------------------------------------------------------
-   ! Linearly interpolate everything else (except winds)
-   !-----------------------------------------------------------------------
-   tmp(:) = nldas30_struc(n)%metdata1(1,1,:)
-   q2(:)  = nldas30_struc(n)%metdata1(1,2,:)
-   uwind(:) = nldas30_struc(n)%metdata1(1,5,:)
-   vwind(:) = nldas30_struc(n)%metdata1(1,6,:)
-   psurf(:) = nldas30_struc(n)%metdata1(1,7,:)
-   #if 0
-   do k = 1,LIS_rc%ntiles(n)/mfactor
-      do m = 1,mfactor
-         t = m + (k-1)*mfactor
-         index1 = LIS_domain(n)%tile(t)%index
-         kk = LIS_get_iteration_index(n,k,index1,mfactor)
-         tmp(t) = nldas30_struc(n)%metdata1(kk,1,index1)
-         q2(t)  = nldas30_struc(n)%metdata1(kk,2,index1)
-         uwind(t) = nldas30_struc(n)%metdata1(kk,5,index1)
-         vwind(t) = nldas30_struc(n)%metdata1(kk,6,index1)
-         psurf(t) = nldas30_struc(n)%metdata1(kk,7,index1)
-      enddo
-   enddo
-   #endif
-
-end subroutine timeinterp_nldas30
-#endif
-
