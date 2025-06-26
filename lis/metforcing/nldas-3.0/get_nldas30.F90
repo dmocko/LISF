@@ -280,7 +280,7 @@ subroutine get_nldas30(n,findex)
    if (nldas30_struc(n)%findtime1.eq.1) then
       order = 1
       do kk = nldas30_struc(n)%st_iterid,nldas30_struc(n)%en_iterid
-         call nldas30files(n,kk,nldas30_struc(n)%nldas30dir,            &
+         call nldas30files(nldas30_struc(n)%nldas30dir,            &
             yr1,mo1,da1,filename)
 
          call read_nldas30(n,order,mo1,findex,filename,                 &
@@ -298,7 +298,7 @@ subroutine get_nldas30(n,findex)
 
       order = 2
       do kk = nldas30_struc(n)%st_iterid,nldas30_struc(n)%en_iterid
-         call nldas30files(n,kk,nldas30_struc(n)%nldas30dir,            &
+         call nldas30files(nldas30_struc(n)%nldas30dir,            &
             yr2,mo2,da2,filename)
 
          call read_nldas30(n,order,mo2,findex,filename,                 &
@@ -327,23 +327,13 @@ subroutine get_nldas30(n,findex)
       call LIS_tick(time1,doy1,gmt1,yr1,mo1,da1,hr1,mn1,ss1,ts1)
       call LIS_tick(time2,doy2,gmt2,yr2,mo2,da2,hr2,mn2,ss2,ts2)
 
-      if (LIS_rc%nts(n).eq.3600) then   ! == 1-hr timestep
-         if (LIS_rc%hr.eq.23) then
-            hr_int1 = 24
-            hr_int2 = 1
-         else
-            hr_int1 = hr1+1
-            hr_int2 = hr2+1
-         endif
-      else  ! Timesteps < 1 hour
-         if (LIS_rc%hr.eq.23) then
-            hr_int1 = 24
-            hr_int2 = 1
-         ! For all other hours (0-22Z):
-         else
-            hr_int1 = hr1+1
-            hr_int2 = hr2+1
-         endif
+      if (LIS_rc%hr.eq.23) then
+         hr_int1 = 24
+         hr_int2 = 1
+      ! For all other hours (0-22Z):
+      else
+         hr_int1 = hr1+1
+         hr_int2 = hr2+1
       endif
 
       ! Assign NLDAS-3 forcing fields to two LIS time-interp placeholders (metdata1,2):
@@ -363,9 +353,7 @@ subroutine get_nldas30(n,findex)
       ! Assign the hourly times:
       nldas30_struc(n)%nldas30time2 = time2
       nldas30_struc(n)%nldas30time1 = time1
-
    endif
-
 end subroutine get_nldas30
 
 !BOP
@@ -373,17 +361,13 @@ end subroutine get_nldas30
 ! \label{nldas30files}
 !
 ! !INTERFACE:
-subroutine nldas30files(n,kk,nldas30dir,yr,mo,da,filename)
+subroutine nldas30files(nldas30dir,yr,mo,da,filename)
 
 ! !USES:
-   use LIS_coreMod
-   use LIS_logMod
-   use LIS_timeMgrMod
+   !none
 
    implicit none
 ! !ARGUMENTS:
-   integer                       :: n
-   integer                       :: kk
    character(len=*), intent(in)  :: nldas30dir
    integer, intent(in)           :: yr,mo,da
    character(len=*), intent(out) :: filename
