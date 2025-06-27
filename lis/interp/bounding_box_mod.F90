@@ -61,7 +61,7 @@ contains
 ! !INTERFACE:
 function find_bounding_box(NC, NR, ilat, ilon, min_olat, max_olat, min_olon, max_olon) result(bb)
 ! !USES:
-! none
+   use LIS_logMod, only : LIS_logunit, LIS_endrun
 
    implicit none
 
@@ -104,8 +104,8 @@ function find_bounding_box(NC, NR, ilat, ilon, min_olat, max_olat, min_olon, max
         max_olat > ilat(NR) .or. &
         min_olon < ilon(1) .or. &
         max_olon > ilon(NC) ) then
-        print*, '[ERR] the output domain is outside the input domain'
-        stop 666
+      write(LIS_logunit,*) '[ERR] The output domain is outside the input domain.'
+      call LIS_endrun
    endif
 
    bb%i_llat = find_lower(NR, ilat, min_olat)
