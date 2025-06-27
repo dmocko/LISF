@@ -1,4 +1,44 @@
+!-----------------------BEGIN NOTICE -- DO NOT EDIT-----------------------
+! NASA Goddard Space Flight Center
+! Land Information System Framework (LISF)
+! Version 7.4
+!
+! Copyright (c) 2022 United States Government as represented by the
+! Administrator of the National Aeronautics and Space Administration.
+! All Rights Reserved.
+!-------------------------END NOTICE -- DO NOT EDIT-----------------------
+
 module bounding_box_mod
+!BOP
+!
+! !MODULE: bounding_box_mod
+!
+! !DESCRIPTION:
+! This module contains the data structures and routines for computing
+! a bounding box around given latitude and longitude values.
+!
+! Example:
+! Say that you have a large metforcing dataset.
+! The grid for this metforcing dataset is the input domain.
+! The running grid for a given LIS process is the output domain.
+! This module will find the smallest sub-domain of the input domain
+! that contains the output domain.  I.e., it will find the smallest
+! sub-domain of the metforcing dataset that contains the LIS running
+! domain for that process.  This allows the metforcing reader to read
+! a subset of the input metforcing data to be spatially interpolated
+! to the LIS running domain for that process.
+!
+! Caveats:
+! This has been tested only on equidistant cylindrical projections
+! for the input and output grids.
+!
+! !REVISION HISTORY:
+! 05 Jun 2024: James Geiger, Initial Specification
+!                                 
+! !USES:
+! none
+!
+! EOP
 type bounding_box_type
    integer :: i_llat ! lower latitude index
    integer :: i_ulat ! upper latitude index
@@ -10,20 +50,61 @@ end type
 
 contains
 
+!BOP
+!
+! !ROUTINE: find_bounding_box
+! \label{find_bounding_box
+!
+! !REVISION HISTORY:
+! 05 Jun 2024: James Geiger, Initial Specification
+!
+! !INTERFACE:
 function find_bounding_box(NC, NR, ilat, ilon, min_olat, max_olat, min_olon, max_olon) result(bb)
+! !USES:
+! none
+
    implicit none
 
-   integer :: NC, NR
-   real, dimension(NC) :: ilon
-   real, dimension(NR) :: ilat
-   real :: min_olat, max_olat, min_olon, max_olon
+! !ARGUMENTS:
+   integer, intent(in) :: NC, NR
+   real, dimension(NR), intent(in) :: ilat
+   real, dimension(NC), intent(in) :: ilon
+   real, intent(in) :: min_olat, max_olat, min_olon, max_olon
+
+! !DESCRIPTION:
+! This function finds the bounding box within the input domain
+! that contains the given output domain.  This function returns
+! a bounding box datatype.
+!
+! The arguments are:
+! \begin{description}
+! \item[NC]
+!    number of columns in the input domain
+! \item[NR]
+!    number of rows in the input domain
+! \item[ilat]
+!    array of latitude values for the input domain
+! \item[ilon]
+!    array of longitude values for the input domain
+! \item[min\_olat]
+!    minimum latitude value for the output domain
+! \item[max\_olat]
+!    maximum latitude value for the output domain
+! \item[min\_olon]
+!    minimum longitude value for the output domain
+! \item[max\_olon]
+!    maximum longitude value for the output domain
+! \end{description}
+!
+!EOP
+
    type(bounding_box_type) :: bb
 
    if ( min_olat < ilat(1) .or. &
         max_olat > ilat(NR) .or. &
         min_olon < ilon(1) .or. &
         max_olon > ilon(NC) ) then
-        print*, '[ERR] output domain is outside input domain'
+        print*, '[ERR] the output domain is outside the input domain'
         stop 666
    endif
 
