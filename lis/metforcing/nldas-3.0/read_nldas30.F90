@@ -77,6 +77,10 @@ subroutine read_nldas30(n,order,month,findex,filename,nldasforc,ferror)
 !    spatially interpolate the forcing data using bilinear interpolation
 !  \item[conserv\_interp](\ref{conserv_interp}) \newline
 !    spatially interpolate the forcing data using conservative interpolation
+!  \item[neighbor\_interp](\ref{neighbor_interp}) \newline
+!    spatially interpolate the forcing data using nearest neighbor interpolation
+!  \item[upscaleByAveraging](\ref{upscaleByAveraging}) \newline
+!    upscales scalar data from a finer grid to a coarser grid 
 !  \end{description}
 !EOP
 
@@ -266,6 +270,10 @@ subroutine interp_nldas30_var(n,findex,month,input_var,var_index, &
             LIS_rc%lnc(n)*LIS_rc%lnr(n),                              &
             LIS_domain(n)%lat,LIS_domain(n)%lon,                      &
             nldas30_struc(n)%n113,LIS_rc%udef,iret)
+      elseif (trim(LIS_rc%met_interp(findex)).eq."average") then
+         call upscaleByAveraging(input_size, LIS_rc%lnc(n)*LIS_rc%lnr(n), &
+            LIS_rc%udef, nldas30_struc(n)%n111, &
+            lb, f, lo, nldasforc(var_index,t,:))
       else
          write(LIS_logunit,*) '[ERR] Spatial interpolation option '// &
             trim(LIS_rc%met_interp(findex))// &

@@ -154,6 +154,10 @@ subroutine init_nldas30(findex)
 !    computes the neighbor, weights for bilinear interpolation
 !   \item[conserv\_interp\_input](\ref{conserv_interp_input}) \newline
 !    computes the neighbor, weights for conservative interpolation
+!   \item[neighbor\_interp\_input](\ref{neighbor_interp_input}) \newline
+!    computes the neighbor, weights for nearest-neighbor interpolation
+!   \item[upscaleByAveraging\_input](\ref{upscaleByAveraging_input}) \newline
+!    computes the neighbors for upscaling by averaging
 !  \end{description}
 !EOP
    real :: gridDesci(50)
@@ -267,6 +271,12 @@ subroutine init_nldas30(findex)
       elseif (trim(LIS_rc%met_interp(findex)).eq."neighbor") then
          allocate(nldas30_struc(n)%n113(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          call neighbor_interp_input(n,gridDesci,nldas30_struc(n)%n113)
+
+      elseif (trim(LIS_rc%met_interp(findex)).eq."average") then
+         allocate(nldas30_struc(n)%n111(bb%NLON*bb%NLAT))
+         call upscaleByAveraging_input(gridDesci,&
+            LIS_rc%gridDesc(n,:), bb%NLON*bb%NLAT,&
+            LIS_rc%lnc(n)*LIS_rc%lnr(n), nldas30_struc(n)%n111)
 
       else
          write(LIS_logunit,*) '[ERR] Interpolation option '//           &
