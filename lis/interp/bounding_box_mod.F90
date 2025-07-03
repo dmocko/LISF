@@ -59,7 +59,7 @@ contains
 ! 05 Jun 2024: James Geiger, Initial Specification
 !
 ! !INTERFACE:
-function find_bounding_box(NC, NR, ilat, ilon, min_olat, max_olat, min_olon, max_olon) result(bb)
+function find_bounding_box(NC, NR, ilat, ilon, min_out_lat, max_out_lat, min_out_lon, max_out_lon) result(bb)
 ! !USES:
    use LIS_logMod, only : LIS_logunit, LIS_endrun
 
@@ -69,7 +69,7 @@ function find_bounding_box(NC, NR, ilat, ilon, min_olat, max_olat, min_olon, max
    integer, intent(in) :: NC, NR
    real, dimension(NR), intent(in) :: ilat
    real, dimension(NC), intent(in) :: ilon
-   real, intent(in) :: min_olat, max_olat, min_olon, max_olon
+   real, intent(in) :: min_out_lat, max_out_lat, min_out_lon, max_out_lon
 
 ! !DESCRIPTION:
 ! This function finds the bounding box within the input domain
@@ -86,25 +86,36 @@ function find_bounding_box(NC, NR, ilat, ilon, min_olat, max_olat, min_olon, max
 !    array of latitude values for the input domain
 ! \item[ilon]
 !    array of longitude values for the input domain
-! \item[min\_olat]
+! \item[min\_out\_lat]
 !    minimum latitude value for the output domain
-! \item[max\_olat]
+! \item[max\_out\_lat]
 !    maximum latitude value for the output domain
-! \item[min\_olon]
+! \item[min\_out\_lon]
 !    minimum longitude value for the output domain
-! \item[max\_olon]
+! \item[max\_out\_lon]
 !    maximum longitude value for the output domain
 ! \end{description}
 !
 !EOP
 
    type(bounding_box_type) :: bb
+   real :: min_olat, max_olat, min_olon, max_olon
+   real, parameter :: epsilon = 0.0001
+
+   min_olat = min_out_lat + epsilon
+   max_olat = max_out_lat - epsilon
+   min_olon = min_out_lon + epsilon
+   max_olon = max_out_lon - epsilon
 
    if ( min_olat < ilat(1) .or. &
         max_olat > ilat(NR) .or. &
         min_olon < ilon(1) .or. &
         max_olon > ilon(NC) ) then
-      write(LIS_logunit,*) '[ERR] The output domain is outside the input domain.'
+      write(LIS_logunit,*) '[ERR] The output domain is outside the input domain.  (with epsilon ', epsilon, ')'
+      write(LIS_logunit,'(a,2f14.8)') '[ERR] min_out_lat, ilat(1) ', min_out_lat, ilat(1)
+      write(LIS_logunit,'(a,2f14.8)') '[ERR] max_out_lat, ilat(NR) ' , max_out_lat, ilat(NR)
+      write(LIS_logunit,'(a,2f14.8)') '[ERR] min_out_lon, ilon(1) ', min_out_lon, ilon(1)
+      write(LIS_logunit,'(a,2f14.8)') '[ERR] max_out_lon, ilon(NC) ', max_out_lon, ilon(NC)
       call LIS_endrun
    endif
 
