@@ -211,18 +211,6 @@ subroutine init_nldas30(findex)
    call nldas30_earth_coords(gridDesci, nldas30_lon, nldas30_lat)
 
    do n = 1,LIS_rc%nnest
-      ! ncold and nrold are independent of nest
-      bb = find_bounding_box(nldas30_struc(1)%ncold, nldas30_struc(1)%nrold, nldas30_lat, nldas30_lon, minval(LIS_domain(n)%lat), maxval(LIS_domain(n)%lat), minval(LIS_domain(n)%lon), maxval(LIS_domain(n)%lon))
-
-      gridDesci(2)  = bb%NLON
-      gridDesci(3)  = bb%NLAT
-      gridDesci(4)  = nldas30_lat(bb%i_llat)
-      gridDesci(5)  = nldas30_lon(bb%i_llon)
-      gridDesci(7)  = nldas30_lat(bb%i_ulat)
-      gridDesci(8)  = nldas30_lon(bb%i_ulon)
-
-      nldas30_struc(n)%bb = bb
-
       ! Setting up weights for Interpolation
       if (trim(LIS_rc%met_interp(findex)).eq."bilinear") then
          allocate(nldas30_struc(n)%n111(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
@@ -233,6 +221,27 @@ subroutine init_nldas30(findex)
          allocate(nldas30_struc(n)%w121(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%w211(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%w221(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
+
+         call bilinear_interp_input(n,gridDesci,            &
+            nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
+            nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
+            nldas30_struc(n)%w111,nldas30_struc(n)%w121,    &
+            nldas30_struc(n)%w211,nldas30_struc(n)%w221)
+
+         bb = find_bounding_box_bilinear(nldas30_struc(n)%ncold, &
+            nldas30_struc(n)%nrold, &
+            nldas30_lat, nldas30_lon, &
+            LIS_rc%lnc(n)*LIS_rc%lnr(n), &
+            nldas30_struc(n)%n111,nldas30_struc(n)%n121, &
+            nldas30_struc(n)%n211,nldas30_struc(n)%n221)
+
+         gridDesci(2)  = bb%NLON
+         gridDesci(3)  = bb%NLAT
+         gridDesci(4)  = nldas30_lat(bb%i_llat)
+         gridDesci(5)  = nldas30_lon(bb%i_llon)
+         gridDesci(7)  = nldas30_lat(bb%i_ulat)
+         gridDesci(8)  = nldas30_lon(bb%i_ulon)
+
          call bilinear_interp_input(n,gridDesci,            &
             nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
             nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
@@ -248,11 +257,6 @@ subroutine init_nldas30(findex)
          allocate(nldas30_struc(n)%w121(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%w211(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          allocate(nldas30_struc(n)%w221(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
-         call bilinear_interp_input(n,gridDesci,            &
-            nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
-            nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
-            nldas30_struc(n)%w111,nldas30_struc(n)%w121,    &
-            nldas30_struc(n)%w211,nldas30_struc(n)%w221)
 
          allocate(nldas30_struc(n)%n112(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
          allocate(nldas30_struc(n)%n122(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
@@ -262,6 +266,41 @@ subroutine init_nldas30(findex)
          allocate(nldas30_struc(n)%w122(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
          allocate(nldas30_struc(n)%w212(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
          allocate(nldas30_struc(n)%w222(LIS_rc%lnc(n)*LIS_rc%lnr(n),25))
+
+         call bilinear_interp_input(n,gridDesci,            &
+            nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
+            nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
+            nldas30_struc(n)%w111,nldas30_struc(n)%w121,    &
+            nldas30_struc(n)%w211,nldas30_struc(n)%w221)
+
+         call conserv_interp_input(n,gridDesci,              &
+            nldas30_struc(n)%n112,nldas30_struc(n)%n122,     &
+            nldas30_struc(n)%n212,nldas30_struc(n)%n222,     &
+            nldas30_struc(n)%w112,nldas30_struc(n)%w122,     &
+            nldas30_struc(n)%w212,nldas30_struc(n)%w222)
+
+         bb = find_bounding_box_budget_bilinear(nldas30_struc(n)%ncold, &
+            nldas30_struc(n)%nrold, &
+            nldas30_lat, nldas30_lon, &
+            LIS_rc%lnc(n)*LIS_rc%lnr(n), &
+            nldas30_struc(n)%n111,nldas30_struc(n)%n121, &
+            nldas30_struc(n)%n211,nldas30_struc(n)%n221, &
+            nldas30_struc(n)%n112,nldas30_struc(n)%n122, &
+            nldas30_struc(n)%n212,nldas30_struc(n)%n222)
+
+         gridDesci(2)  = bb%NLON
+         gridDesci(3)  = bb%NLAT
+         gridDesci(4)  = nldas30_lat(bb%i_llat)
+         gridDesci(5)  = nldas30_lon(bb%i_llon)
+         gridDesci(7)  = nldas30_lat(bb%i_ulat)
+         gridDesci(8)  = nldas30_lon(bb%i_ulon)
+
+         call bilinear_interp_input(n,gridDesci,            &
+            nldas30_struc(n)%n111,nldas30_struc(n)%n121,    &
+            nldas30_struc(n)%n211,nldas30_struc(n)%n221,    &
+            nldas30_struc(n)%w111,nldas30_struc(n)%w121,    &
+            nldas30_struc(n)%w211,nldas30_struc(n)%w221)
+
          call conserv_interp_input(n,gridDesci,              &
             nldas30_struc(n)%n112,nldas30_struc(n)%n122,     &
             nldas30_struc(n)%n212,nldas30_struc(n)%n222,     &
@@ -272,10 +311,49 @@ subroutine init_nldas30(findex)
          allocate(nldas30_struc(n)%n113(LIS_rc%lnc(n)*LIS_rc%lnr(n)))
          call neighbor_interp_input(n,gridDesci,nldas30_struc(n)%n113)
 
+         bb = find_bounding_box_neighbor(nldas30_struc(n)%ncold, &
+            nldas30_struc(n)%nrold, &
+            nldas30_lat, nldas30_lon, &
+            LIS_rc%lnc(n)*LIS_rc%lnr(n), &
+            nldas30_struc(n)%n113)
+
+         gridDesci(2)  = bb%NLON
+         gridDesci(3)  = bb%NLAT
+         gridDesci(4)  = nldas30_lat(bb%i_llat)
+         gridDesci(5)  = nldas30_lon(bb%i_llon)
+         gridDesci(7)  = nldas30_lat(bb%i_ulat)
+         gridDesci(8)  = nldas30_lon(bb%i_ulon)
+
+         call neighbor_interp_input(n,gridDesci,nldas30_struc(n)%n113)
+
       elseif (trim(LIS_rc%met_interp(findex)).eq."average") then
+         allocate(nldas30_struc(n)%n111(nldas30_struc(n)%ncold*nldas30_struc(n)%nrold))
+
+         call upscaleByAveraging_input(gridDesci, &
+            LIS_rc%gridDesc(n,:), &
+            nldas30_struc(n)%ncold*nldas30_struc(n)%nrold, &
+            LIS_rc%lnc(n)*LIS_rc%lnr(n), nldas30_struc(n)%n111)
+
+         bb = find_bounding_box_average(nldas30_struc(n)%ncold, &
+            nldas30_struc(n)%nrold, &
+            nldas30_lat, nldas30_lon, &
+            LIS_rc%lnc(n), LIS_rc%lnr(n), &
+            LIS_domain(n)%lat, LIS_domain(n)%lon, &
+            nldas30_struc(n)%n111)
+
+         gridDesci(2)  = bb%NLON
+         gridDesci(3)  = bb%NLAT
+         gridDesci(4)  = nldas30_lat(bb%i_llat)
+         gridDesci(5)  = nldas30_lon(bb%i_llon)
+         gridDesci(7)  = nldas30_lat(bb%i_ulat)
+         gridDesci(8)  = nldas30_lon(bb%i_ulon)
+
+         deallocate(nldas30_struc(n)%n111)
          allocate(nldas30_struc(n)%n111(bb%NLON*bb%NLAT))
-         call upscaleByAveraging_input(gridDesci,&
-            LIS_rc%gridDesc(n,:), bb%NLON*bb%NLAT,&
+
+         call upscaleByAveraging_input(gridDesci, &
+            LIS_rc%gridDesc(n,:), &
+            bb%NLON*bb%NLAT, &
             LIS_rc%lnc(n)*LIS_rc%lnr(n), nldas30_struc(n)%n111)
 
       else
@@ -284,6 +362,8 @@ subroutine init_nldas30(findex)
             ' for NLDAS-3 forcing is not supported'
          call LIS_endrun
       endif
+
+      nldas30_struc(n)%bb = bb
 
       allocate(nldas30_struc(n)%nldasforc1(1,nldas30_struc(n)%nvars,24, &
          LIS_rc%lnc(n)*LIS_rc%lnr(n)))
