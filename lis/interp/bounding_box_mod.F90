@@ -33,7 +33,7 @@ module bounding_box_mod
 ! for the input and output grids.
 !
 ! !REVISION HISTORY:
-! 05 Jun 2024: James Geiger, Initial Specification
+! 05 Jun 2025: James Geiger, Initial Specification
 !                                 
 ! !USES:
 ! none
@@ -53,7 +53,7 @@ contains
 !BOP
 !
 ! !ROUTINE: find_bounding_box
-! \label{find_bounding_box
+! \label{find_bounding_box}
 !
 ! !REVISION HISTORY:
 ! 05 Jun 2024: James Geiger, Initial Specification
