@@ -52,6 +52,54 @@ contains
 
 !BOP
 !
+! !ROUTINE: remove_zeros
+! \label{remove_zeros}
+!
+! !REVISION HISTORY:
+! 12 Sep 2025: James Geiger, Initial Specification
+!
+! !INTERFACE:
+function remove_zeros(N, x) result(r)
+! !USES:
+!  none
+
+   implicit none
+
+! !ARGUMENTS:
+   integer, intent(in) :: N
+   integer, dimension(N), intent(in) :: x
+   integer, pointer, dimension(:) :: r
+
+! !DESCRIPTION:
+! This function takes a 1-D array of integers and creates an output
+! array by removing the elements that are 0.
+!
+! The arguments are:
+! \begin{description}
+! \item[N]
+!    size of the input array
+! \item[x]
+!    input array
+! \item[r]
+!    output array
+! \end{description}
+!
+!EOP
+
+   integer :: i, c
+
+   allocate(r(count(x /= 0)))
+   c = 1
+   do i = 1, N
+      if ( x(i) /= 0 ) then
+         r(c) = x(i)
+         c = c + 1
+      endif
+   enddo
+end function remove_zeros
+
+!BOP
+!
 ! !ROUTINE: find_bounding_box_bilinear
 ! \label{find_bounding_box_bilinear}
 !
@@ -110,30 +158,127 @@ function find_bounding_box_bilinear(INC, INR, ilat, ilon, ONCxONR, n111, n121, n
    integer :: min_r211, max_r211, min_c211, max_c211
    integer :: min_r221, max_r221, min_c221, max_c221
 
-   min_c111 = minval(mod(n111, INC))
-   max_c111 = maxval(mod(n111, INC))
-   min_r111 = minval(n111 / INC + 1)
-   max_r111 = maxval(n111 / INC + 1)
+#if 0
+   integer, allocatable, dimension(:) :: tmp_array
+#endif
+   integer, allocatable, target, dimension(:) :: tmp_array
 
-   min_c121 = minval(mod(n121, INC))
-   max_c121 = maxval(mod(n121, INC))
-   min_r121 = minval(n121 / INC + 1)
-   max_r121 = maxval(n121 / INC + 1)
+#if 0
+   ! works (for my test), but does not account for possible zeros in n111
+   min_c111 = minval(mod(n111 - 1, INC)+1)
+   max_c111 = maxval(mod(n111 - 1, INC)+1)
+   min_r111 = minval((n111 - 1) / INC + 1)
+   max_r111 = maxval((n111 - 1) / INC + 1)
 
-   min_c211 = minval(mod(n211, INC))
-   max_c211 = maxval(mod(n211, INC))
-   min_r211 = minval(n211 / INC + 1)
-   max_r211 = maxval(n211 / INC + 1)
+   min_c121 = minval(mod(n121 - 1, INC)+1)
+   max_c121 = maxval(mod(n121 - 1, INC)+1)
+   min_r121 = minval((n121 - 1) / INC + 1)
+   max_r121 = maxval((n121 - 1) / INC + 1)
 
-   min_c221 = minval(mod(n221, INC))
-   max_c221 = maxval(mod(n221, INC))
-   min_r221 = minval(n221 / INC + 1)
-   max_r221 = maxval(n221 / INC + 1)
+   min_c211 = minval(mod(n211 - 1, INC)+1)
+   max_c211 = maxval(mod(n211 - 1, INC)+1)
+   min_r211 = minval((n211 - 1) / INC + 1)
+   max_r211 = maxval((n211 - 1) / INC + 1)
+
+   min_c221 = minval(mod(n221 - 1, INC)+1)
+   max_c221 = maxval(mod(n221 - 1, INC)+1)
+   min_r221 = minval((n221 - 1) / INC + 1)
+   max_r221 = maxval((n221 - 1) / INC + 1)
+#endif
+
+#if 0
+#define CORRECTION (1)
+   ! works (for my test), and accounts for possible zeros in n111
+   ! where does not work as I expected.
+   ! both arrays must have the same size.
+   allocate(tmp_array(count(n111 > 0)))
+   where ( n111 /= 0 )
+      !tmp_array = n111
+      tmp_array = n111 - CORRECTION
+   endwhere
+   !min_c111 = minval(mod(tmp_array, INC))
+   !max_c111 = maxval(mod(tmp_array, INC))
+   min_c111 = minval(mod(tmp_array, INC)+CORRECTION)
+   max_c111 = maxval(mod(tmp_array, INC)+CORRECTION)
+   min_r111 = minval(tmp_array / INC + 1)
+   max_r111 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   allocate(tmp_array(count(n121 > 0)))
+   where ( n121 /= 0 )
+      tmp_array = n121 - CORRECTION
+   endwhere
+   min_c121 = minval(mod(tmp_array, INC)+CORRECTION)
+   max_c121 = maxval(mod(tmp_array, INC)+CORRECTION)
+   min_r121 = minval(tmp_array / INC + 1)
+   max_r121 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   allocate(tmp_array(count(n211 > 0)))
+   where ( n211 /= 0 )
+      tmp_array = n211 - CORRECTION
+   endwhere
+   min_c211 = minval(mod(tmp_array, INC)+CORRECTION)
+   max_c211 = maxval(mod(tmp_array, INC)+CORRECTION)
+   min_r211 = minval(tmp_array / INC + 1)
+   max_r211 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   allocate(tmp_array(count(n221 > 0)))
+   where ( n221 /= 0 )
+      tmp_array = n221 - CORRECTION
+   endwhere
+   min_c221 = minval(mod(tmp_array, INC)+CORRECTION)
+   max_c221 = maxval(mod(tmp_array, INC)+CORRECTION)
+   min_r221 = minval(tmp_array / INC + 1)
+   max_r221 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+#endif
+
+#if 1
+   tmp_array = remove_zeros(ONCxONR, n111)
+   tmp_array = tmp_array - 1
+   min_c111 = minval(mod(tmp_array, INC) + 1)
+   max_c111 = maxval(mod(tmp_array, INC) + 1)
+   min_r111 = minval(tmp_array / INC + 1)
+   max_r111 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   tmp_array = remove_zeros(ONCxONR, n121)
+   tmp_array = tmp_array - 1
+   min_c121 = minval(mod(tmp_array, INC)+1)
+   max_c121 = maxval(mod(tmp_array, INC)+1)
+   min_r121 = minval(tmp_array / INC + 1)
+   max_r121 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   tmp_array = remove_zeros(ONCxONR, n211)
+   tmp_array = tmp_array - 1
+   min_c211 = minval(mod(tmp_array, INC)+1)
+   max_c211 = maxval(mod(tmp_array, INC)+1)
+   min_r211 = minval(tmp_array / INC + 1)
+   max_r211 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   tmp_array = remove_zeros(ONCxONR, n221)
+   tmp_array = tmp_array - 1
+   min_c221 = minval(mod(tmp_array, INC)+1)
+   max_c221 = maxval(mod(tmp_array, INC)+1)
+   min_r221 = minval(tmp_array / INC + 1)
+   max_r221 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+#endif
 
    min_r = min(min_r111, min_r121, min_r211, min_r221)
    max_r = max(max_r111, max_r121, max_r211, max_r221)
    min_c = min(min_c111, min_c121, min_c211, min_c221)
    max_c = max(max_c111, max_c121, max_c211, max_c221)
+!<debug -- jim testing>
+write(LIS_logunit,*) 'GREP: min_r=', min_r
+write(LIS_logunit,*) 'GREP: max_r=', max_r
+write(LIS_logunit,*) 'GREP: min_c=', min_c
+write(LIS_logunit,*) 'GREP: max_c=', max_c
+!</debug -- jim testing>
 
    bb%i_llat = min_r
    bb%i_ulat = max_r
@@ -220,45 +365,114 @@ function find_bounding_box_budget_bilinear(INC, INR, ilat, ilon, ONCxONR, n111, 
    integer :: min_r212, max_r212, min_c212, max_c212
    integer :: min_r222, max_r222, min_c222, max_c222
 
-   min_c111 = minval(mod(n111, INC))
-   max_c111 = maxval(mod(n111, INC))
-   min_r111 = minval(n111 / INC + 1)
-   max_r111 = maxval(n111 / INC + 1)
+   integer, allocatable, target, dimension(:) :: tmp_array
 
-   min_c121 = minval(mod(n121, INC))
-   max_c121 = maxval(mod(n121, INC))
-   min_r121 = minval(n121 / INC + 1)
-   max_r121 = maxval(n121 / INC + 1)
+#if 0
+   min_c111 = minval(mod(n111 - 1, INC))
+   max_c111 = maxval(mod(n111 - 1, INC))
+   min_r111 = minval((n111 - 1) / INC + 1)
+   max_r111 = maxval((n111 - 1) / INC + 1)
 
-   min_c211 = minval(mod(n211, INC))
-   max_c211 = maxval(mod(n211, INC))
-   min_r211 = minval(n211 / INC + 1)
-   max_r211 = maxval(n211 / INC + 1)
+   min_c121 = minval(mod(n121 - 1, INC))
+   max_c121 = maxval(mod(n121 - 1, INC))
+   min_r121 = minval((n121 - 1) / INC + 1)
+   max_r121 = maxval((n121 - 1) / INC + 1)
 
-   min_c221 = minval(mod(n221, INC))
-   max_c221 = maxval(mod(n221, INC))
-   min_r221 = minval(n221 / INC + 1)
-   max_r221 = maxval(n221 / INC + 1)
+   min_c211 = minval(mod(n211 - 1, INC))
+   max_c211 = maxval(mod(n211 - 1, INC))
+   min_r211 = minval((n211 - 1) / INC + 1)
+   max_r211 = maxval((n211 - 1) / INC + 1)
 
-   min_c112 = minval(mod(n112, INC))
-   max_c112 = maxval(mod(n112, INC))
-   min_r112 = minval(n112 / INC + 1)
-   max_r112 = maxval(n112 / INC + 1)
+   min_c221 = minval(mod(n221 - 1, INC))
+   max_c221 = maxval(mod(n221 - 1, INC))
+   min_r221 = minval((n221 - 1) / INC + 1)
+   max_r221 = maxval((n221 - 1) / INC + 1)
 
-   min_c122 = minval(mod(n122, INC))
-   max_c122 = maxval(mod(n122, INC))
-   min_r122 = minval(n122 / INC + 1)
-   max_r122 = maxval(n122 / INC + 1)
+   min_c112 = minval(mod(n112 - 1, INC))
+   max_c112 = maxval(mod(n112 - 1, INC))
+   min_r112 = minval((n112 - 1) / INC + 1)
+   max_r112 = maxval((n112 - 1) / INC + 1)
 
-   min_c212 = minval(mod(n212, INC))
-   max_c212 = maxval(mod(n212, INC))
-   min_r212 = minval(n212 / INC + 1)
-   max_r212 = maxval(n212 / INC + 1)
+   min_c122 = minval(mod(n122 - 1, INC))
+   max_c122 = maxval(mod(n122 - 1, INC))
+   min_r122 = minval((n122 - 1) / INC + 1)
+   max_r122 = maxval((n122 - 1) / INC + 1)
 
-   min_c222 = minval(mod(n222, INC))
-   max_c222 = maxval(mod(n222, INC))
-   min_r222 = minval(n222 / INC + 1)
-   max_r222 = maxval(n222 / INC + 1)
+   min_c212 = minval(mod(n212 - 1, INC))
+   max_c212 = maxval(mod(n212 - 1, INC))
+   min_r212 = minval((n212 - 1) / INC + 1)
+   max_r212 = maxval((n212 - 1) / INC + 1)
+
+   min_c222 = minval(mod(n222 - 1, INC))
+   max_c222 = maxval(mod(n222 - 1, INC))
+   min_r222 = minval((n222 - 1) / INC + 1)
+   max_r222 = maxval((n222 - 1) / INC + 1)
+#endif
+
+#if 1
+   tmp_array = remove_zeros(ONCxONR, n111)
+   tmp_array = tmp_array - 1
+   min_c111 = minval(mod(tmp_array, INC) + 1)
+   max_c111 = maxval(mod(tmp_array, INC) + 1)
+   min_r111 = minval(tmp_array / INC + 1)
+   max_r111 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   tmp_array = remove_zeros(ONCxONR, n121)
+   tmp_array = tmp_array - 1
+   min_c121 = minval(mod(tmp_array, INC) + 1)
+   max_c121 = maxval(mod(tmp_array, INC) + 1)
+   min_r121 = minval(tmp_array / INC + 1)
+   max_r121 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   tmp_array = remove_zeros(ONCxONR, n211)
+   tmp_array = tmp_array - 1
+   min_c211 = minval(mod(tmp_array, INC) + 1)
+   max_c211 = maxval(mod(tmp_array, INC) + 1)
+   min_r211 = minval(tmp_array / INC + 1)
+   max_r211 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   tmp_array = remove_zeros(ONCxONR, n221)
+   tmp_array = tmp_array - 1
+   min_c221 = minval(mod(tmp_array, INC) + 1)
+   max_c221 = maxval(mod(tmp_array, INC) + 1)
+   min_r221 = minval(tmp_array / INC + 1)
+   max_r221 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   tmp_array = remove_zeros(ONCxONR*25, reshape(n112,(/ONCxONR*25/)))
+   tmp_array = tmp_array - 1
+   min_c112 = minval(mod(tmp_array, INC) + 1)
+   max_c112 = maxval(mod(tmp_array, INC) + 1)
+   min_r112 = minval(tmp_array / INC + 1)
+   max_r112 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   tmp_array = remove_zeros(ONCxONR*25, reshape(n122,(/ONCxONR*25/)))
+   tmp_array = tmp_array - 1
+   min_c122 = minval(mod(tmp_array, INC) + 1)
+   max_c122 = maxval(mod(tmp_array, INC) + 1)
+   min_r122 = minval(tmp_array / INC + 1)
+   max_r122 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   tmp_array = remove_zeros(ONCxONR*25, reshape(n212,(/ONCxONR*25/)))
+   tmp_array = tmp_array - 1
+   min_c212 = minval(mod(tmp_array, INC) + 1)
+   max_c212 = maxval(mod(tmp_array, INC) + 1)
+   min_r212 = minval(tmp_array / INC + 1)
+   max_r212 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
+
+   tmp_array = remove_zeros(ONCxONR*25, reshape(n222,(/ONCxONR*25/)))
+   tmp_array = tmp_array - 1
+   min_c222 = minval(mod(tmp_array, INC) + 1)
+   max_c222 = maxval(mod(tmp_array, INC) + 1)
+   min_r222 = minval(tmp_array / INC + 1)
+   max_r222 = maxval(tmp_array / INC + 1)
+#endif
 
    min_r = min(min_r111, min_r121, min_r211, min_r221, min_r112, min_r122, min_r212, min_r222)
    max_r = max(max_r111, max_r121, max_r211, max_r221, max_r112, max_r122, max_r212, max_r222)
@@ -337,7 +551,6 @@ function find_bounding_box_average(INC, INR, ilat, ilon, LNC, LNR, olat, olon, n
    real :: min_lat, max_lat, min_lon, max_lon
 
    integer :: tmp_size, i, c
-   integer, allocatable, dimension(:) :: tmp_array_i
    real, allocatable, dimension(:) :: tmp_array_r
    integer, dimension(1) :: ml, fl
 
@@ -466,10 +679,15 @@ function find_bounding_box_neighbor(INC, INR, ilat, ilon, ONCxONR, n113) result(
    integer :: min_c, max_c, min_r, max_r
    integer :: min_r113, max_r113, min_c113, max_c113
 
-   min_c113 = minval(mod(n113, INC))
-   max_c113 = maxval(mod(n113, INC))
-   min_r113 = minval(n113 / INC + 1)
-   max_r113 = maxval(n113 / INC + 1)
+   integer, allocatable, target, dimension(:) :: tmp_array
+
+   tmp_array = remove_zeros(ONCxONR, n113)
+   tmp_array = tmp_array - 1
+   min_c113 = minval(mod(tmp_array, INC) + 1)
+   max_c113 = maxval(mod(tmp_array, INC) + 1)
+   min_r113 = minval(tmp_array / INC + 1)
+   max_r113 = maxval(tmp_array / INC + 1)
+   deallocate(tmp_array)
 
    min_r = min_r113
    max_r = max_r113
