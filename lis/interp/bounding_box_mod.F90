@@ -109,7 +109,7 @@ end function remove_zeros
 ! !INTERFACE:
 function find_bounding_box_bilinear(INC, INR, ilat, ilon, ONCxONR, n111, n121, n211, n221) result(bb)
 ! !USES:
-   use LIS_logMod, only : LIS_logunit, LIS_endrun
+! none
 
    implicit none
 
@@ -158,84 +158,8 @@ function find_bounding_box_bilinear(INC, INR, ilat, ilon, ONCxONR, n111, n121, n
    integer :: min_r211, max_r211, min_c211, max_c211
    integer :: min_r221, max_r221, min_c221, max_c221
 
-#if 0
-   integer, allocatable, dimension(:) :: tmp_array
-#endif
    integer, allocatable, target, dimension(:) :: tmp_array
 
-#if 0
-   ! works (for my test), but does not account for possible zeros in n111
-   min_c111 = minval(mod(n111 - 1, INC)+1)
-   max_c111 = maxval(mod(n111 - 1, INC)+1)
-   min_r111 = minval((n111 - 1) / INC + 1)
-   max_r111 = maxval((n111 - 1) / INC + 1)
-
-   min_c121 = minval(mod(n121 - 1, INC)+1)
-   max_c121 = maxval(mod(n121 - 1, INC)+1)
-   min_r121 = minval((n121 - 1) / INC + 1)
-   max_r121 = maxval((n121 - 1) / INC + 1)
-
-   min_c211 = minval(mod(n211 - 1, INC)+1)
-   max_c211 = maxval(mod(n211 - 1, INC)+1)
-   min_r211 = minval((n211 - 1) / INC + 1)
-   max_r211 = maxval((n211 - 1) / INC + 1)
-
-   min_c221 = minval(mod(n221 - 1, INC)+1)
-   max_c221 = maxval(mod(n221 - 1, INC)+1)
-   min_r221 = minval((n221 - 1) / INC + 1)
-   max_r221 = maxval((n221 - 1) / INC + 1)
-#endif
-
-#if 0
-#define CORRECTION (1)
-   ! works (for my test), and accounts for possible zeros in n111
-   ! where does not work as I expected.
-   ! both arrays must have the same size.
-   allocate(tmp_array(count(n111 > 0)))
-   where ( n111 /= 0 )
-      !tmp_array = n111
-      tmp_array = n111 - CORRECTION
-   endwhere
-   !min_c111 = minval(mod(tmp_array, INC))
-   !max_c111 = maxval(mod(tmp_array, INC))
-   min_c111 = minval(mod(tmp_array, INC)+CORRECTION)
-   max_c111 = maxval(mod(tmp_array, INC)+CORRECTION)
-   min_r111 = minval(tmp_array / INC + 1)
-   max_r111 = maxval(tmp_array / INC + 1)
-   deallocate(tmp_array)
-
-   allocate(tmp_array(count(n121 > 0)))
-   where ( n121 /= 0 )
-      tmp_array = n121 - CORRECTION
-   endwhere
-   min_c121 = minval(mod(tmp_array, INC)+CORRECTION)
-   max_c121 = maxval(mod(tmp_array, INC)+CORRECTION)
-   min_r121 = minval(tmp_array / INC + 1)
-   max_r121 = maxval(tmp_array / INC + 1)
-   deallocate(tmp_array)
-
-   allocate(tmp_array(count(n211 > 0)))
-   where ( n211 /= 0 )
-      tmp_array = n211 - CORRECTION
-   endwhere
-   min_c211 = minval(mod(tmp_array, INC)+CORRECTION)
-   max_c211 = maxval(mod(tmp_array, INC)+CORRECTION)
-   min_r211 = minval(tmp_array / INC + 1)
-   max_r211 = maxval(tmp_array / INC + 1)
-   deallocate(tmp_array)
-
-   allocate(tmp_array(count(n221 > 0)))
-   where ( n221 /= 0 )
-      tmp_array = n221 - CORRECTION
-   endwhere
-   min_c221 = minval(mod(tmp_array, INC)+CORRECTION)
-   max_c221 = maxval(mod(tmp_array, INC)+CORRECTION)
-   min_r221 = minval(tmp_array / INC + 1)
-   max_r221 = maxval(tmp_array / INC + 1)
-   deallocate(tmp_array)
-#endif
-
-#if 1
    tmp_array = remove_zeros(ONCxONR, n111)
    tmp_array = tmp_array - 1
    min_c111 = minval(mod(tmp_array, INC) + 1)
@@ -267,18 +191,11 @@ function find_bounding_box_bilinear(INC, INR, ilat, ilon, ONCxONR, n111, n121, n
    min_r221 = minval(tmp_array / INC + 1)
    max_r221 = maxval(tmp_array / INC + 1)
    deallocate(tmp_array)
-#endif
 
    min_r = min(min_r111, min_r121, min_r211, min_r221)
    max_r = max(max_r111, max_r121, max_r211, max_r221)
    min_c = min(min_c111, min_c121, min_c211, min_c221)
    max_c = max(max_c111, max_c121, max_c211, max_c221)
-!<debug -- jim testing>
-write(LIS_logunit,*) 'GREP: min_r=', min_r
-write(LIS_logunit,*) 'GREP: max_r=', max_r
-write(LIS_logunit,*) 'GREP: min_c=', min_c
-write(LIS_logunit,*) 'GREP: max_c=', max_c
-!</debug -- jim testing>
 
    bb%i_llat = min_r
    bb%i_ulat = max_r
@@ -303,7 +220,7 @@ end function find_bounding_box_bilinear
 ! !INTERFACE:
 function find_bounding_box_budget_bilinear(INC, INR, ilat, ilon, ONCxONR, n111, n121, n211, n221, n112, n122, n212, n222) result(bb)
 ! !USES:
-   use LIS_logMod, only : LIS_logunit, LIS_endrun
+! none
 
    implicit none
 
@@ -367,49 +284,6 @@ function find_bounding_box_budget_bilinear(INC, INR, ilat, ilon, ONCxONR, n111, 
 
    integer, allocatable, target, dimension(:) :: tmp_array
 
-#if 0
-   min_c111 = minval(mod(n111 - 1, INC))
-   max_c111 = maxval(mod(n111 - 1, INC))
-   min_r111 = minval((n111 - 1) / INC + 1)
-   max_r111 = maxval((n111 - 1) / INC + 1)
-
-   min_c121 = minval(mod(n121 - 1, INC))
-   max_c121 = maxval(mod(n121 - 1, INC))
-   min_r121 = minval((n121 - 1) / INC + 1)
-   max_r121 = maxval((n121 - 1) / INC + 1)
-
-   min_c211 = minval(mod(n211 - 1, INC))
-   max_c211 = maxval(mod(n211 - 1, INC))
-   min_r211 = minval((n211 - 1) / INC + 1)
-   max_r211 = maxval((n211 - 1) / INC + 1)
-
-   min_c221 = minval(mod(n221 - 1, INC))
-   max_c221 = maxval(mod(n221 - 1, INC))
-   min_r221 = minval((n221 - 1) / INC + 1)
-   max_r221 = maxval((n221 - 1) / INC + 1)
-
-   min_c112 = minval(mod(n112 - 1, INC))
-   max_c112 = maxval(mod(n112 - 1, INC))
-   min_r112 = minval((n112 - 1) / INC + 1)
-   max_r112 = maxval((n112 - 1) / INC + 1)
-
-   min_c122 = minval(mod(n122 - 1, INC))
-   max_c122 = maxval(mod(n122 - 1, INC))
-   min_r122 = minval((n122 - 1) / INC + 1)
-   max_r122 = maxval((n122 - 1) / INC + 1)
-
-   min_c212 = minval(mod(n212 - 1, INC))
-   max_c212 = maxval(mod(n212 - 1, INC))
-   min_r212 = minval((n212 - 1) / INC + 1)
-   max_r212 = maxval((n212 - 1) / INC + 1)
-
-   min_c222 = minval(mod(n222 - 1, INC))
-   max_c222 = maxval(mod(n222 - 1, INC))
-   min_r222 = minval((n222 - 1) / INC + 1)
-   max_r222 = maxval((n222 - 1) / INC + 1)
-#endif
-
-#if 1
    tmp_array = remove_zeros(ONCxONR, n111)
    tmp_array = tmp_array - 1
    min_c111 = minval(mod(tmp_array, INC) + 1)
@@ -472,7 +346,6 @@ function find_bounding_box_budget_bilinear(INC, INR, ilat, ilon, ONCxONR, n111, 
    max_c222 = maxval(mod(tmp_array, INC) + 1)
    min_r222 = minval(tmp_array / INC + 1)
    max_r222 = maxval(tmp_array / INC + 1)
-#endif
 
    min_r = min(min_r111, min_r121, min_r211, min_r221, min_r112, min_r122, min_r212, min_r222)
    max_r = max(max_r111, max_r121, max_r211, max_r221, max_r112, max_r122, max_r212, max_r222)
@@ -502,7 +375,7 @@ end function find_bounding_box_budget_bilinear
 ! !INTERFACE:
 function find_bounding_box_average(INC, INR, ilat, ilon, LNC, LNR, olat, olon, n111) result(bb)
 ! !USES:
-   use LIS_logMod, only : LIS_logunit, LIS_endrun
+! none
 
    implicit none
 
@@ -639,7 +512,7 @@ end function find_bounding_box_average
 ! !INTERFACE:
 function find_bounding_box_neighbor(INC, INR, ilat, ilon, ONCxONR, n113) result(bb)
 ! !USES:
-   use LIS_logMod, only : LIS_logunit, LIS_endrun
+! none
 
    implicit none
 
