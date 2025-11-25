@@ -67,6 +67,10 @@ subroutine timeinterp_nldas30(n,findex)
    wt1 = (nldas30_struc(n)%nldas30time2-LIS_rc%time)/                   &
       (nldas30_struc(n)%nldas30time2-nldas30_struc(n)%nldas30time1)
    wt2 = 1.0 - wt1
+   if (wt1.gt.1.01) then
+      wt1 = 1.0
+      wt2 = 0.0
+   endif
 
    call ESMF_StateGet(LIS_FORC_Base_State(n,findex),LIS_FORC_Tair%varname(1),tmpField,&
       rc=status)
@@ -132,9 +136,23 @@ subroutine timeinterp_nldas30(n,findex)
          index1 = LIS_domain(n)%tile(t)%index
          kk = LIS_get_iteration_index(n,k,index1,mfactor)
          if ((nldas30_struc(n)%metdata1(kk,3,index1).ne.LIS_rc%udef).and.&
-            (nldas30_struc(n)%metdata2(kk,3,index1).ne.LIS_rc%udef)) then
-            swd(t) = (nldas30_struc(n)%metdata1(kk,3,index1) * wt1) +   &
-               (nldas30_struc(n)%metdata2(kk,3,index1) * wt2)
+             (nldas30_struc(n)%metdata2(kk,3,index1).ne.LIS_rc%udef)) then
+             if (nldas30_struc(n)%metdata1(kk,3,index1).lt.0.0) then
+!                write(unit=LIS_logunit,fmt=*) '[WARN] SWdown negative'
+!                write(unit=LIS_logunit,fmt=*) '[WARN] metdata1 = ',     &
+!                      nldas30_struc(n)%metdata1(kk,3,index1)
+!                write(unit=LIS_logunit,fmt=*) '[WARN] Resetting to zero'
+                nldas30_struc(n)%metdata1(kk,3,index1) = 0.0
+             endif
+             if (nldas30_struc(n)%metdata2(kk,3,index1).lt.0.0) then
+!                write(unit=LIS_logunit,fmt=*) '[WARN] SWdown negative'
+!                write(unit=LIS_logunit,fmt=*) '[WARN] metdata2 = ',     &
+!                      nldas30_struc(n)%metdata2(kk,3,index1)
+!                write(unit=LIS_logunit,fmt=*) '[WARN] Resetting to zero'
+                nldas30_struc(n)%metdata2(kk,3,index1) = 0.0
+             endif
+             swd(t) = (nldas30_struc(n)%metdata1(kk,3,index1) * wt1) +  &
+                      (nldas30_struc(n)%metdata2(kk,3,index1) * wt2)
             if (swd(t).gt.LIS_CONST_SOLAR) then
                write(unit=LIS_logunit,fmt=*)                            &
                   '[WARN] sw radiation too high!!'
@@ -149,7 +167,7 @@ subroutine timeinterp_nldas30(n,findex)
             endif
          endif
 
-         if ((swd(t).ne.LIS_rc%udef).and.(swd(t).lt.0)) then
+         if ((swd(t).ne.LIS_rc%udef).and.(swd(t).lt.0.0)) then
             if (swd(t).gt.-0.00001) then
                swd(t) = 0.0
             else
@@ -157,8 +175,11 @@ subroutine timeinterp_nldas30(n,findex)
                   '[ERR] timeinterp_nldas30 -- Stopping because ',    &
                   'forcing not udef but lt0,'
                write(LIS_logunit,*)'[ERR] timeinterp_nldas30 -- ',      &
-                  t,swd(t),nldas30_struc(n)%metdata2(kk,3,index1),    &
-                  ' (',LIS_localPet,')'
+                  t,swd(t),' (',LIS_localPet,')'
+               write(LIS_logunit,*) &
+                  nldas30_struc(n)%metdata2(kk,3,index1),    &
+                  nldas30_struc(n)%metdata1(kk,3,index1),    &
+                  wt1,wt2
                call LIS_endrun
             endif
          endif
