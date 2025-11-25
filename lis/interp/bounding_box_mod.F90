@@ -50,6 +50,37 @@ end type
 
 contains
 
+! The following routines use this integer-based arithmetic for
+! mapping grid-cell indicies to i,j indicies.
+! 
+! For a given grid,
+! let NC be the number of columns for that grid;
+! let NR be the number of rows for that grid.
+! 
+! For any grid-cell index, g, its column index, i, and row index, j,
+! are given by:
+! 
+! i = mod(g - 1, NC) + 1
+! j = (g - 1) / NC + 1
+! 
+! For example,
+! 
+! +----+----+----+----+----+----+----+
+! | 15 | 16 | 17 | 18 | 19 | 20 | 21 |
+! +----+----+----+----+----+----+----+
+! | 8  |  9 | 10 | 11 | 12 | 13 | 14 |
+! +----+----+----+----+----+----+----+
+! | 1  |  2 |  3 |  4 |  5 |  6 |  7 |
+! +----+----+----+----+----+----+----+
+! 
+! NC = 7
+! NR = 3
+! 
+! For grid-cell, g=11,
+! 
+! i = mod(10, 7) + 1 = 4
+! j = 10 / 7 + 1 = 2
+
 !BOP
 !
 ! !ROUTINE: remove_zeros
